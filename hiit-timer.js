@@ -12,6 +12,8 @@
     intervaloId: null
   };
 
+  let sessaoAtiva = false;
+
   function tocarBip(freq, duracao, tipo = "sine") {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -62,6 +64,19 @@
       box.classList.add("border-slate-800");
       badge.className += "bg-slate-800 text-slate-200";
     }
+  }
+
+  function aplicarVisibilidade() {
+    const el = document.getElementById("hiitTimerModulo");
+    if (!el) return;
+    if (sessaoAtiva) {
+      el.classList.remove("hidden");
+      el.style.display = "";
+    } else {
+      el.classList.add("hidden");
+      el.style.display = "none";
+    }
+    window.dispatchEvent(new CustomEvent("crosshitbox:sessao", { detail: { ativa: sessaoAtiva } }));
   }
 
   function tick() {
@@ -151,6 +166,7 @@
   const container = document.createElement("section");
   container.id = "hiitTimerModulo";
   container.className = "hidden max-w-6xl mx-auto my-6 bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-xl transition-colors";
+  container.style.display = "none";
   container.innerHTML = `
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div>
@@ -198,24 +214,40 @@
 
   document.body.appendChild(container);
 
-  function sincronizarVisibilidadeSessao() {
-    const el = document.getElementById("hiitTimerModulo");
-    if (!el) return;
-    const candidatos = Array.from(document.querySelectorAll("section, main, div")).filter((node) => {
-      if (node.id === "hiitTimerModulo" || node.id === "alertasClinicosModulo") return false;
-      const txt = (node.textContent || "");
-      const temConteudoInterno = txt.includes("Sessão ativa como:") || txt.includes("Configurar Sala de Videochamada") || txt.includes("Vídeos de Aulas Gravadas") || txt.includes("Ficha de Treino");
-      const visivel = node.offsetParent !== null && getComputedStyle(node).display !== "none";
-      return temConteudoInterno && visivel && node.offsetHeight > 120;
+  function avaliarEstadoReal() {
+    const bodyText = document.body ? (document.body.innerText || "") : "";
+    const temBotaoSair = Array.from(document.querySelectorAll("button, a")).some((el) => {
+      const t = (el.textContent || "").trim().toLowerCase();
+      return (t === "sair" || t === "terminar sessão" || t === "logout") && el.offsetParent !== null;
     });
-    if (candidatos.length > 0) {
-      el.classList.remove("hidden");
-    } else {
-      el.classList.add("hidden");
+    const temSecaoAutenticada = bodyText.includes("Sessão ativa como:") || bodyText.includes("Vídeos de Aulas Gravadas") || bodyText.includes("Configurar Sala de Videochamada");
+    const novaAtiva = Boolean(temBotaoSair || temSecaoAutenticada);
+    if (novaAtiva !== sessaoAtiva) {
+      sessaoAtiva = novaAtiva;
+      aplicarVisibilidade();
     }
   }
 
-  setInterval(sincronizarVisibilidadeSessao, 400);
-  sincronizarVisibilidadeSessao();
+  document.addEventListener("click", (ev) => {
+    const alvo = ev.target.closest("button");
+    if (!alvo) return;
+    const txt = (alvo.textContent || "").trim().toLowerCase();
+    if (txt === "sair" || txt === "terminar sessão" || txt === "logout") {
+      sessaoAtiva = false;
+      window.hiitPausar();
+      aplicarVisibilidade();
+    } else {
+      setTimeout(avaliarEstadoReal, 150);
+      setTimeout(avaliarEstadoReal, 500);
+    }
+  });
+
+  document.addEventListener("submit", () => {
+    setTimeout(avaliarEstadoReal, 200);
+    setTimeout(avaliarEstadoReal, 600);
+  });
+
+  setInterval(avaliarEstadoReal, 500);
+  aplicarVisibilidade();
   atualizarUI();
 })();
