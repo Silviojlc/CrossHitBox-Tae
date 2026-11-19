@@ -7,13 +7,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-white min-h-screen p-6">
-  <div class="max-w-5xl mx-auto space-y-6">
-    <div class="flex items-center justify-between">
+  <div class="max-w-5xl mx-auto space-y-8">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold text-amber-400">Painel Administrativo — CrossHitBox Tae</h1>
-        <p class="text-sm text-slate-400">Gestão de atletas inscritos (05:00 e 18:00)</p>
+        <p class="text-sm text-slate-400">Gestão de atletas, videochamadas ao vivo e vídeos gravados (05:00 e 18:00)</p>
       </div>
-      <a href="/" class="text-sm text-slate-300 hover:text-amber-400 underline">Voltar ao Formulário</a>
+      <div class="flex gap-4 text-sm">
+        <a href="/membro.html" class="text-emerald-400 hover:text-emerald-300 underline">Área do Atleta</a>
+        <a href="/" class="text-slate-300 hover:text-amber-400 underline">Voltar ao Formulário</a>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -45,28 +48,64 @@
         <tbody id="tabelaMembros" class="divide-y divide-slate-800"></tbody>
       </table>
     </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+        <h2 class="text-base font-bold text-amber-400">Configurar Sala de Videochamada por Turno</h2>
+        <form id="chamadaForm" class="space-y-3">
+          <select id="chamadaTurno" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+            <option value="05:00">Turno 05:00 (Madrugada)</option>
+            <option value="18:00">Turno 18:00 (Tarde)</option>
+          </select>
+          <input id="chamadaTitulo" type="text" placeholder="Título da aula ao vivo" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+          <input id="chamadaSala" type="text" placeholder="Nome da sala (ex.: Kosmo-CrossHitBox-Tae-0500)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+          <input id="chamadaUrlExterna" type="text" placeholder="Link externo opcional (Zoom / Google Meet / Jitsi)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+          <button type="submit" class="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm">
+            Guardar Videochamada
+          </button>
+        </form>
+        <p id="chamadaMsg" class="text-xs text-emerald-400"></p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+        <h2 class="text-base font-bold text-amber-400">Publicar Vídeo de Aula Gravada</h2>
+        <form id="videoForm" class="space-y-3">
+          <input id="videoTitulo" type="text" required placeholder="Título da aula gravada" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+          <select id="videoTurno" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+            <option value="05:00 - Madrugada">05:00 — Madrugada</option>
+            <option value="18:00 - Tarde">18:00 — Tarde</option>
+          </select>
+          <input id="videoDuracao" type="text" placeholder="Duração (ex.: 30 min)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+          <input id="videoUrl" type="text" required placeholder="URL do vídeo (YouTube ou link embed/mp4)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+          <button type="submit" class="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+            Adicionar Vídeo
+          </button>
+        </form>
+        <ul id="listaAdminVideos" class="space-y-2 pt-2 text-xs"></ul>
+      </div>
+    </div>
   </div>
 
   <script>
     async function carregarMembros() {
-      const res = await fetch('/api/crosshitbox/membros');
+      const res = await fetch("/api/crosshitbox/membros");
       const data = await res.json();
-      const tbody = document.getElementById('tabelaMembros');
-      tbody.innerHTML = '';
+      const tbody = document.getElementById("tabelaMembros");
+      tbody.innerHTML = "";
 
       if (!data.success) return;
       const membros = data.membros || [];
-      document.getElementById('totalMembros').textContent = membros.length;
-      document.getElementById('totalManha').textContent = membros.filter(m => (m.horario || '').includes('05:00')).length;
-      document.getElementById('totalTarde').textContent = membros.filter(m => (m.horario || '').includes('18:00')).length;
+      document.getElementById("totalMembros").textContent = membros.length;
+      document.getElementById("totalManha").textContent = membros.filter(m => (m.horario || "").includes("05:00")).length;
+      document.getElementById("totalTarde").textContent = membros.filter(m => (m.horario || "").includes("18:00")).length;
 
       for (const m of membros) {
-        const tr = document.createElement('tr');
+        const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class="p-3">${m.nome || ''}</td>
-          <td class="p-3">${m.email || ''}</td>
-          <td class="p-3">${m.telefone || '-'}</td>
-          <td class="p-3">${m.horario || ''}</td>
+          <td class="p-3">${m.nome || ""}</td>
+          <td class="p-3">${m.email || ""}</td>
+          <td class="p-3">${m.telefone || "-"}</td>
+          <td class="p-3">${m.horario || ""}</td>
           <td class="p-3">
             <button onclick="removerMembro('${m.id}')" class="px-2.5 py-1 rounded bg-rose-700 hover:bg-rose-600 text-xs">Remover</button>
           </td>
@@ -76,11 +115,69 @@
     }
 
     async function removerMembro(id) {
-      await fetch(`/api/crosshitbox/membros/${id}`, { method: 'DELETE' });
+      await fetch(`/api/crosshitbox/membros/${id}`, { method: "DELETE" });
       carregarMembros();
     }
 
+    async function carregarAulasAdmin() {
+      const res = await fetch("/api/crosshitbox/aulas");
+      const data = await res.json();
+      if (!data.success) return;
+
+      const ul = document.getElementById("listaAdminVideos");
+      ul.innerHTML = "";
+      for (const v of (data.videos || [])) {
+        const li = document.createElement("li");
+        li.className = "flex items-center justify-between bg-slate-950 px-3 py-2 rounded border border-slate-800";
+        li.innerHTML = `<span><strong>${v.titulo}</strong> (${v.turno})</span><button onclick="removerVideo('${v.id}')" class="text-rose-400 hover:underline">Apagar</button>`;
+        ul.appendChild(li);
+      }
+    }
+
+    document.getElementById("chamadaForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const res = await fetch("/api/crosshitbox/aulas/chamada", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          turno: document.getElementById("chamadaTurno").value,
+          titulo: document.getElementById("chamadaTitulo").value,
+          sala: document.getElementById("chamadaSala").value,
+          urlExterna: document.getElementById("chamadaUrlExterna").value
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById("chamadaMsg").textContent = "Sala de videochamada atualizada.";
+      }
+    });
+
+    document.getElementById("videoForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const res = await fetch("/api/crosshitbox/aulas/videos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: document.getElementById("videoTitulo").value,
+          turno: document.getElementById("videoTurno").value,
+          duracao: document.getElementById("videoDuracao").value,
+          videoUrl: document.getElementById("videoUrl").value
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        e.target.reset();
+        carregarAulasAdmin();
+      }
+    });
+
+    async function removerVideo(id) {
+      await fetch(`/api/crosshitbox/aulas/videos/${id}`, { method: "DELETE" });
+      carregarAulasAdmin();
+    }
+
     carregarMembros();
+    carregarAulasAdmin();
   </script>
 </body>
 </html>
