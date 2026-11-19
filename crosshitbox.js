@@ -7,6 +7,7 @@ const crypto = require('crypto');
 
 const DB_LOCAL_PATH = path.join(__dirname, 'membros_local.json');
 const AULAS_LOCAL_PATH = path.join(__dirname, 'aulas_local.json');
+const CONFIG_LOCAL_PATH = path.join(__dirname, 'config_local.json');
 
 function lerJson(caminho, padrao) {
   try {
@@ -19,6 +20,36 @@ function lerJson(caminho, padrao) {
 
 function escreverJson(caminho, dados) {
   fs.writeFileSync(caminho, JSON.stringify(dados, null, 2), 'utf8');
+}
+
+function lerPrecoLocal() {
+  const cfg = lerJson(CONFIG_LOCAL_PATH, { preco_crosshitbox: 3500 });
+  const valor = Number(cfg.preco_crosshitbox);
+  return Number.isFinite(valor) && valor >= 0 ? valor : 3500;
+}
+
+function guardarPrecoLocal(preco) {
+  escreverJson(CONFIG_LOCAL_PATH, { preco_crosshitbox: preco });
+}
+
+async function obterPrecoAtual(supabase) {
+  let preco = lerPrecoLocal();
+  try {
+    const { data, error } = await supabase
+      .from('configuracoes_sistema')
+      .select('preco_crosshitbox')
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data && data.preco_crosshitbox !== null && data.preco_crosshitbox !== undefined) {
+      const valorNuvem = Number(data.preco_crosshitbox);
+      if (Number.isFinite(valorNuvem) && valorNuvem >= 0) {
+        preco = valorNuvem;
+        guardarPrecoLocal(preco);
+      }
+    }
+  } catch {}
+  return preco;
 }
 
 function lerMembrosLocais() {
@@ -121,6 +152,41 @@ async function enviarEmailBoasVindas({ nome, email, horario, preco, passwordTemp
 module.exports = function (supabase) {
   const router = express.Router();
 
+  router.get('/preco', async (req, res) => {
+    const preco = await obterPrecoAtual(supabase);
+    return res.json({ success: true, preco });
+  });
+
+  router.post('/preco', async (req, res) => {
+    const novoPreco = Number(req.body && req.body.preco);
+    if (!Number.isFinite(novoPreco) || novoPreco < 0) {
+      return res.status(400).json({ success: false, error: 'Introduza um valor válido (0 ou superior).' });
+    }
+
+    guardarPrecoLocal(novoPreco);
+
+    try {
+      const { data: existente } = await supabase
+        .from('configuracoes_sistema')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+
+      if (existente && existente.id) {
+        await supabase
+          .from('configuracoes_sistema')
+          .update({ preco_crosshitbox: novoPreco })
+          .eq('id', existente.id);
+      } else {
+        await supabase
+          .from('configuracoes_sistema')
+          .insert([{ preco_crosshitbox: novoPreco }]);
+      }
+    } catch {}
+
+    return res.json({ success: true, preco: novoPreco });
+  });
+
   router.get('/horarios', async (req, res) => {
     try {
       const { data, error } = await supabase
@@ -149,19 +215,7 @@ module.exports = function (supabase) {
         return res.status(400).json({ success: false, error: 'Nome, e-mail e turno são obrigatórios.' });
       }
 
-      let precoAplicado = 3500;
-      try {
-        const { data: config } = await supabase
-          .from('configuracoes_sistema')
-          .select('preco_crosshitbox')
-          .limit(1)
-          .maybeSingle();
-
-        if (config && config.preco_crosshitbox) {
-          precoAplicado = config.preco_crosshitbox;
-        }
-      } catch {}
-
+      const precoAplicado = await obterPrecoAtual(supabase);
       const passwordTemp = gerarPasswordTemporaria();
       const passwordHash = await bcrypt.hash(passwordTemp, 10);
 
