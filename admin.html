@@ -7,103 +7,263 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-white min-h-screen p-6">
-  <div class="max-w-5xl mx-auto space-y-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-bold text-amber-400">Painel Administrativo — CrossHitBox Tae</h1>
-        <p class="text-sm text-slate-400">Gestão de atletas, videochamadas ao vivo e vídeos gravados (05:00 e 18:00)</p>
-      </div>
-      <div class="flex gap-4 text-sm">
-        <a href="/membro.html" class="text-emerald-400 hover:text-emerald-300 underline">Área do Atleta</a>
-        <a href="/" class="text-slate-300 hover:text-amber-400 underline">Voltar ao Formulário</a>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <p class="text-xs text-slate-400 uppercase">Total de Atletas</p>
-        <p id="totalMembros" class="text-2xl font-bold mt-1">0</p>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <p class="text-xs text-slate-400 uppercase">Turno 05:00</p>
-        <p id="totalManha" class="text-2xl font-bold mt-1">0</p>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <p class="text-xs text-slate-400 uppercase">Turno 18:00</p>
-        <p id="totalTarde" class="text-2xl font-bold mt-1">0</p>
-      </div>
-    </div>
-
-    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-      
-    <div id="blocoPrecoAulas" class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-wrap items-center justify-between gap-4 my-6">
-      <div>
-        <h2 class="text-base font-bold text-amber-400">Preço das Aulas (CrossHitBox Tae)</h2>
-        <p id="precoAtualInfo" class="text-xs text-slate-400 mt-0.5">A carregar preço atual...</p>
-      </div>
-      <form id="precoForm" class="flex flex-wrap items-center gap-2">
-        <input id="inputPreco" type="number" min="0" step="1" required placeholder="Valor em ECV" class="w-40 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
-        <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
-          Guardar Preço
+  <div class="max-w-5xl mx-auto">
+    <div id="adminAuthBox" class="max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 mt-12 shadow-xl">
+      <h1 class="text-xl font-bold text-amber-400 text-center">ADMINISTRAÇÃO — CROSSHITBOX TAE</h1>
+      <p class="text-xs text-slate-400 text-center mt-1">Acesso exclusivo ao administrador</p>
+      <form id="adminLoginForm" class="space-y-4 mt-5">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Utilizador</label>
+          <input id="adminUserInput" type="text" required placeholder="Nome de utilizador" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Senha</label>
+          <input id="adminPassInput" type="password" required placeholder="Senha" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+          Entrar no Painel
         </button>
       </form>
-      <p id="precoMsg" class="w-full text-xs text-emerald-400"></p>
-    </div>
-  
-    <table class="w-full text-left text-sm">
-        <thead class="bg-slate-800/70 text-slate-300">
-          <tr>
-            <th class="p-3">Nome</th>
-            <th class="p-3">E-mail</th>
-            <th class="p-3">Telefone</th>
-            <th class="p-3">Turno</th>
-            <th class="p-3">Ações</th>
-          </tr>
-        </thead>
-        <tbody id="tabelaMembros" class="divide-y divide-slate-800"></tbody>
-      </table>
+      <p id="adminAuthErro" class="hidden mt-3 text-xs text-rose-400 text-center"></p>
+      <div class="mt-4 text-center">
+        <a href="/" class="text-xs text-slate-400 hover:text-amber-400 underline">Voltar à Inscrição</a>
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
-        <h2 class="text-base font-bold text-amber-400">Configurar Sala de Videochamada por Turno</h2>
-        <form id="chamadaForm" class="space-y-3">
-          <select id="chamadaTurno" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
-            <option value="05:00">Turno 05:00 (Madrugada)</option>
-            <option value="18:00">Turno 18:00 (Tarde)</option>
-          </select>
-          <input id="chamadaTitulo" type="text" placeholder="Título da aula ao vivo" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
-          <input id="chamadaSala" type="text" placeholder="Nome da sala (ex.: Kosmo-CrossHitBox-Tae-0500)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
-          <input id="chamadaUrlExterna" type="text" placeholder="Link externo opcional (Zoom / Google Meet / Jitsi)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
-          <button type="submit" class="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm">
-            Guardar Videochamada
+    <div id="adminPainelBox" class="hidden space-y-8">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-amber-400">Painel Administrativo — CrossHitBox Tae</h1>
+          <p id="adminLogadoComo" class="text-sm text-slate-400"></p>
+        </div>
+        <div class="flex items-center gap-4 text-sm">
+          <a href="/membro.html" class="text-emerald-400 hover:text-emerald-300 underline">Área do Atleta</a>
+          <a href="/" class="text-slate-300 hover:text-amber-400 underline">Formulário</a>
+          <button onclick="terminarSessaoAdmin()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs">
+            Sair
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <p class="text-xs text-slate-400 uppercase">Total de Atletas</p>
+          <p id="totalMembros" class="text-2xl font-bold mt-1">0</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <p class="text-xs text-slate-400 uppercase">Turno 05:00</p>
+          <p id="totalManha" class="text-2xl font-bold mt-1">0</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <p class="text-xs text-slate-400 uppercase">Turno 18:00</p>
+          <p id="totalTarde" class="text-2xl font-bold mt-1">0</p>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-amber-400">Preço das Aulas (CrossHitBox Tae)</h2>
+          <p id="precoAtualInfo" class="text-xs text-slate-400 mt-0.5">A carregar preço atual...</p>
+        </div>
+        <form id="precoForm" class="flex flex-wrap items-center gap-2">
+          <input id="inputPreco" type="number" min="0" step="1" required placeholder="Valor em ECV" class="w-40 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+            Guardar Preço
           </button>
         </form>
-        <p id="chamadaMsg" class="text-xs text-emerald-400"></p>
+        <p id="precoMsg" class="w-full text-xs text-emerald-400"></p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-800/70 text-slate-300">
+            <tr>
+              <th class="p-3">Nome</th>
+              <th class="p-3">E-mail</th>
+              <th class="p-3">Telefone</th>
+              <th class="p-3">Turno</th>
+              <th class="p-3">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaMembros" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+
+      <div id="resetMembroBox" class="hidden bg-slate-900 border border-amber-500/40 rounded-xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 id="resetMembroTitulo" class="font-bold text-amber-400 text-sm">Redefinir Password do Atleta</h3>
+          <button onclick="document.getElementById('resetMembroBox').classList.add('hidden')" class="text-xs text-slate-400 hover:text-white">Fechar</button>
+        </div>
+        <form id="resetMembroForm" class="flex flex-wrap items-center gap-3">
+          <input id="resetMembroEmail" type="hidden" />
+          <input id="resetMembroNovaPass" type="text" placeholder="Nova password (ou deixe vazio para gerar automática)" class="flex-1 min-w-[240px] px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+            Aplicar Nova Password
+          </button>
+        </form>
+        <p id="resetMembroResultado" class="text-xs text-emerald-400"></p>
+      </div>
+
+      <div id="detalheFichaBox" class="hidden bg-slate-900 border border-sky-500/40 rounded-xl p-5 space-y-2 text-sm">
+        <div class="flex items-center justify-between">
+          <h3 id="fichaDetalheTitulo" class="font-bold text-sky-400">Ficha do Atleta</h3>
+          <button onclick="document.getElementById('detalheFichaBox').classList.add('hidden')" class="text-xs text-slate-400 hover:text-white">Fechar</button>
+        </div>
+        <div id="fichaDetalheConteudo" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300"></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+          <h2 class="text-base font-bold text-amber-400">Configurar Sala de Videochamada por Turno</h2>
+          <form id="chamadaForm" class="space-y-3">
+            <select id="chamadaTurno" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+              <option value="05:00">Turno 05:00 (Madrugada)</option>
+              <option value="18:00">Turno 18:00 (Tarde)</option>
+            </select>
+            <input id="chamadaTitulo" type="text" placeholder="Título da aula ao vivo" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+            <input id="chamadaSala" type="text" placeholder="Nome da sala (ex.: CrossHitBox-Tae-0500)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+            <input id="chamadaUrlExterna" type="text" placeholder="Link externo opcional (Jitsi / Zoom / Meet)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+            <button type="submit" class="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm">
+              Guardar Videochamada
+            </button>
+          </form>
+          <p id="chamadaMsg" class="text-xs text-emerald-400"></p>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+          <h2 class="text-base font-bold text-amber-400">Publicar Vídeo de Aula Gravada</h2>
+          <form id="videoForm" class="space-y-3">
+            <input id="videoTitulo" type="text" required placeholder="Título da aula gravada" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+            <select id="videoTurno" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+              <option value="05:00 - Madrugada">05:00 — Madrugada</option>
+              <option value="18:00 - Tarde">18:00 — Tarde</option>
+            </select>
+            <input id="videoDuracao" type="text" placeholder="Duração (ex.: 30 min)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+            <input id="videoUrl" type="text" required placeholder="URL do vídeo (YouTube ou link embed/mp4)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+            <button type="submit" class="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+              Adicionar Vídeo
+            </button>
+          </form>
+          <ul id="listaAdminVideos" class="space-y-2 pt-2 text-xs"></ul>
+        </div>
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
-        <h2 class="text-base font-bold text-amber-400">Publicar Vídeo de Aula Gravada</h2>
-        <form id="videoForm" class="space-y-3">
-          <input id="videoTitulo" type="text" required placeholder="Título da aula gravada" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
-          <select id="videoTurno" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
-            <option value="05:00 - Madrugada">05:00 — Madrugada</option>
-            <option value="18:00 - Tarde">18:00 — Tarde</option>
-          </select>
-          <input id="videoDuracao" type="text" placeholder="Duração (ex.: 30 min)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
-          <input id="videoUrl" type="text" required placeholder="URL do vídeo (YouTube ou link embed/mp4)" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
-          <button type="submit" class="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
-            Adicionar Vídeo
+        <h2 class="text-base font-bold text-amber-400">Alterar Utilizador e Senha de Administrador</h2>
+        <form id="credenciaisAdminForm" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input id="novoAdminUser" type="text" placeholder="Novo utilizador (ex.: Berluscops)" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          <input id="novaAdminPass" type="password" placeholder="Nova senha (opcional, mín. 4)" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          <button type="submit" class="py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold">
+            Atualizar Acesso Admin
           </button>
         </form>
-        <ul id="listaAdminVideos" class="space-y-2 pt-2 text-xs"></ul>
+        <p id="credenciaisAdminMsg" class="text-xs text-emerald-400"></p>
       </div>
     </div>
   </div>
 
   <script>
+    let adminUsuario = "";
+    let adminSenha = "";
+
+    function headersAdmin() {
+      return {
+        "Content-Type": "application/json",
+        "x-admin-user": adminUsuario,
+        "x-admin-password": adminSenha
+      };
+    }
+
+    document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const user = document.getElementById("adminUserInput").value.trim();
+      const pass = document.getElementById("adminPassInput").value;
+
+      const res = await fetch("/api/crosshitbox/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password: pass })
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        const err = document.getElementById("adminAuthErro");
+        err.textContent = data.error || "Acesso negado.";
+        err.classList.remove("hidden");
+        return;
+      }
+
+      adminUsuario = data.username || user;
+      adminSenha = pass;
+      document.getElementById("adminAuthBox").classList.add("hidden");
+      document.getElementById("adminPainelBox").classList.remove("hidden");
+      document.getElementById("adminLogadoComo").textContent = "Sessão ativa como: " + adminUsuario;
+      document.getElementById("novoAdminUser").value = adminUsuario;
+
+      carregarPreco();
+      carregarMembros();
+      carregarAulasAdmin();
+    });
+
+    function terminarSessaoAdmin() {
+      adminUsuario = "";
+      adminSenha = "";
+      document.getElementById("adminPainelBox").classList.add("hidden");
+      document.getElementById("adminAuthBox").classList.remove("hidden");
+      document.getElementById("adminLoginForm").reset();
+    }
+
+    document.getElementById("credenciaisAdminForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const novoUser = document.getElementById("novoAdminUser").value.trim();
+      const novaPass = document.getElementById("novaAdminPass").value;
+
+      const res = await fetch("/api/crosshitbox/admin/credenciais", {
+        method: "POST",
+        headers: headersAdmin(),
+        body: JSON.stringify({ novoUsuario: novoUser, novaPassword: novaPass })
+      });
+      const data = await res.json();
+      const msgEl = document.getElementById("credenciaisAdminMsg");
+      if (data.success) {
+        adminUsuario = data.username;
+        if (novaPass && novaPass.trim().length >= 4) {
+          adminSenha = novaPass.trim();
+        }
+        document.getElementById("adminLogadoComo").textContent = "Sessão ativa como: " + adminUsuario;
+        document.getElementById("novaAdminPass").value = "";
+        msgEl.textContent = "Credenciais atualizadas com sucesso.";
+      } else {
+        msgEl.textContent = data.error || "Erro ao atualizar credenciais.";
+      }
+    });
+
+    async function carregarPreco() {
+      const res = await fetch("/api/crosshitbox/preco");
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById("inputPreco").value = data.preco;
+        document.getElementById("precoAtualInfo").textContent = "Valor ativo aplicado nas novas inscrições: " + data.preco + " ECV";
+      }
+    }
+
+    document.getElementById("precoForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const valor = Number(document.getElementById("inputPreco").value);
+      const res = await fetch("/api/crosshitbox/preco", {
+        method: "POST",
+        headers: headersAdmin(),
+        body: JSON.stringify({ preco: valor })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById("precoAtualInfo").textContent = "Valor ativo aplicado nas novas inscrições: " + data.preco + " ECV";
+        document.getElementById("precoMsg").textContent = "Preço atualizado para " + data.preco + " ECV.";
+      }
+    });
+
     async function carregarMembros() {
-      const res = await fetch("/api/crosshitbox/membros");
+      const res = await fetch("/api/crosshitbox/membros", { headers: headersAdmin() });
       const data = await res.json();
       const tbody = document.getElementById("tabelaMembros");
       tbody.innerHTML = "";
@@ -115,13 +275,16 @@
       document.getElementById("totalTarde").textContent = membros.filter(m => (m.horario || "").includes("18:00")).length;
 
       for (const m of membros) {
+        const nomeLimpo = (m.nome || "").replace(/'/g, "");
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td class="p-3">${m.nome || ""}</td>
           <td class="p-3">${m.email || ""}</td>
           <td class="p-3">${m.telefone || "-"}</td>
           <td class="p-3">${m.horario || ""}</td>
-          <td class="p-3">
+          <td class="p-3 flex flex-wrap gap-1.5">
+            <button onclick="verFicha('${m.email}', '${nomeLimpo}')" class="px-2.5 py-1 rounded bg-sky-700 hover:bg-sky-600 text-xs">Ficha</button>
+            <button onclick="abrirResetMembro('${m.email}', '${nomeLimpo}')" class="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-xs text-slate-950 font-semibold">Reset Senha</button>
             <button onclick="removerMembro('${m.id}')" class="px-2.5 py-1 rounded bg-rose-700 hover:bg-rose-600 text-xs">Remover</button>
           </td>
         `;
@@ -129,8 +292,62 @@
       }
     }
 
+    function abrirResetMembro(email, nome) {
+      document.getElementById("resetMembroEmail").value = email;
+      document.getElementById("resetMembroTitulo").textContent = "Redefinir Password — " + nome + " (" + email + ")";
+      document.getElementById("resetMembroNovaPass").value = "";
+      document.getElementById("resetMembroResultado").textContent = "";
+      document.getElementById("resetMembroBox").classList.remove("hidden");
+    }
+
+    document.getElementById("resetMembroForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("resetMembroEmail").value;
+      const novaPass = document.getElementById("resetMembroNovaPass").value;
+      const res = await fetch("/api/crosshitbox/admin/reset-membro-password", {
+        method: "POST",
+        headers: headersAdmin(),
+        body: JSON.stringify({ email: email, novaPassword: novaPass })
+      });
+      const data = await res.json();
+      const out = document.getElementById("resetMembroResultado");
+      if (data.success) {
+        out.innerHTML = "Nova password ativa para <strong>" + data.email + "</strong>: <code class='px-1.5 py-0.5 rounded bg-slate-950 text-amber-300'>" + data.novaPassword + "</code>";
+      } else {
+        out.textContent = data.error || "Erro ao redefinir password.";
+      }
+    });
+
+    async function verFicha(email, nome) {
+      const res = await fetch("/api/crosshitbox/ficha/" + encodeURIComponent(email));
+      const data = await res.json();
+      const box = document.getElementById("detalheFichaBox");
+      const cont = document.getElementById("fichaDetalheConteudo");
+      document.getElementById("fichaDetalheTitulo").textContent = "Ficha de Avaliação — " + nome + " (" + email + ")";
+
+      if (!data.success || !data.ficha) {
+        cont.innerHTML = "<p class='col-span-2 text-slate-400'>Este atleta ainda não preencheu a ficha de treino.</p>";
+        box.classList.remove("hidden");
+        return;
+      }
+
+      const f = data.ficha;
+      cont.innerHTML = `
+        <div class="bg-slate-950 p-3 rounded border border-slate-800"><strong class="text-amber-300">Experiência:</strong> ${f.nivel_experiencia || "-"} (${f.tempo_musculacao || "-"})</div>
+        <div class="bg-slate-950 p-3 rounded border border-slate-800"><strong class="text-amber-300">Objetivo:</strong> ${f.objetivo_principal || "-"}</div>
+        <div class="bg-slate-950 p-3 rounded border border-slate-800 md:col-span-2"><strong class="text-rose-300">Patologias / Lesões:</strong> ${f.patologias_lesoes || "-"}</div>
+        <div class="bg-slate-950 p-3 rounded border border-slate-800 md:col-span-2"><strong class="text-amber-300">Medicação / Restrições:</strong> ${f.medicacao_restricoes || "-"}</div>
+        <div class="bg-slate-950 p-3 rounded border border-slate-800 md:col-span-2"><strong class="text-amber-300">Histórico de Treinos:</strong> ${f.historico_treinos || "-"}</div>
+        <div class="bg-slate-950 p-3 rounded border border-slate-800 md:col-span-2"><strong class="text-amber-300">Observações para o Treinador:</strong> ${f.observacoes_treinador || "-"}</div>
+      `;
+      box.classList.remove("hidden");
+    }
+
     async function removerMembro(id) {
-      await fetch(`/api/crosshitbox/membros/${id}`, { method: "DELETE" });
+      await fetch("/api/crosshitbox/membros/" + id, {
+        method: "DELETE",
+        headers: headersAdmin()
+      });
       carregarMembros();
     }
 
@@ -153,7 +370,7 @@
       e.preventDefault();
       const res = await fetch("/api/crosshitbox/aulas/chamada", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: headersAdmin(),
         body: JSON.stringify({
           turno: document.getElementById("chamadaTurno").value,
           titulo: document.getElementById("chamadaTitulo").value,
@@ -171,7 +388,7 @@
       e.preventDefault();
       const res = await fetch("/api/crosshitbox/aulas/videos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: headersAdmin(),
         body: JSON.stringify({
           titulo: document.getElementById("videoTitulo").value,
           turno: document.getElementById("videoTurno").value,
@@ -187,45 +404,12 @@
     });
 
     async function removerVideo(id) {
-      await fetch(`/api/crosshitbox/aulas/videos/${id}`, { method: "DELETE" });
+      await fetch("/api/crosshitbox/aulas/videos/" + id, {
+        method: "DELETE",
+        headers: headersAdmin()
+      });
       carregarAulasAdmin();
     }
-
-    carregarMembros();
-    carregarAulasAdmin();
   </script>
-
-  <script>
-    async function carregarPrecoCrossHitBox() {
-      try {
-        const res = await fetch("/api/crosshitbox/preco");
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById("inputPreco").value = data.preco;
-          document.getElementById("precoAtualInfo").textContent = "Valor ativo aplicado nas novas inscrições: " + data.preco + " ECV";
-        }
-      } catch {}
-    }
-
-    document.getElementById("precoForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const valor = Number(document.getElementById("inputPreco").value);
-      const res = await fetch("/api/crosshitbox/preco", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preco: valor })
-      });
-      const data = await res.json();
-      if (data.success) {
-        document.getElementById("precoAtualInfo").textContent = "Valor ativo aplicado nas novas inscrições: " + data.preco + " ECV";
-        document.getElementById("precoMsg").textContent = "Preço atualizado para " + data.preco + " ECV.";
-      } else {
-        document.getElementById("precoMsg").textContent = data.error || "Erro ao guardar preço.";
-      }
-    });
-
-    carregarPrecoCrossHitBox();
-  </script>
-  
 </body>
 </html>
