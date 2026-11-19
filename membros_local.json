@@ -1,0 +1,79 @@
+[
+  {
+    "id": "933d4c64-0c34-4fa6-a2a0-935a104ada66",
+    "nome": "Silvino Cabral",
+    "email": "silvinocabral@gmail.com",
+    "telefone": "9197213",
+    "horario": "05:00 - Madrugada",
+    "preco_aplicado": 3500,
+    "password_hash": "$2b$10$e1hGUqB2O1Jzyrt/z5j0YeeE55FuW3r.PbTvUPDANcGKmJqknpnJK",
+    "ativo": true,
+    "created_at": "2026-11-19T16:20:55.133Z"
+  },
+  {
+    "id": "d27dae49-37d0-449f-a910-8dcd24f01d53",
+    "nome": "lima Duarte",
+    "email": "limaduarte@gmail.com",
+    "telefone": "9552530",
+    "horario": "05:00 - Madrugada",
+    "preco_aplicado": 3500,
+    "password_hash": "$2b$10$rkVPnUGAW.5EKOb1.lJN.eKHBKvXBaJkF85.mG2F9ZddtVt5mjqZa",
+    "ativo": true,
+    "created_at": "2026-11-19T16:02:45.560Z"
+  },
+  {
+    "id": "882207d6-9b27-4d2c-b81c-23f7faf4bec6",
+    "nome": "Rajada Branco",
+    "email": "rajadabranco@gmail.com",
+    "telefone": "9125547",
+    "horario": "05:00 - Madrugada",
+    "preco_aplicado": 3500,
+    "password_hash": "$2b$10$aIdctF8hgjnlRaQU1mQEmO/RQVpdbuO68Z3X5qWu1aljhCih8ZNpK",
+    "ativo": true,
+    "created_at": "2026-11-19T15:30:39.918Z"
+  },
+  {
+    "id": "42a728c6-fee9-470d-998a-570f0d71242d",
+    "nome": "silvio santos",
+    "email": "silviosantos@gmail.com",
+    "telefone": "9155588",
+    "horario": "05:00 - Madrugada",
+    "preco_aplicado": 3500,
+    "password_hash": "$2b$10$YioHbgbv/ynJebA7SJ488eWO8rdYp8FOzsUyzNq8O52v5CfeFxO5q",
+    "ativo": true,
+    "created_at": "2026-11-19T15:17:10.372Z"
+  },
+  {
+    "id": "ad5675dd-4411-42fb-9a8b-690c559cbb2e",
+    "nome": "LINA SOUTO",
+    "email": "linasouto@gmail.com",
+    "telefone": "91525223",
+    "horario": "05:00 - Madrugada",
+    "preco_aplicado": 3500,
+    "password_hash": "$2b$10$tOMo4f6KOPNBayxBt1sRMuokMBZr8mA6An2YAbKK52L31vBr4/dGS",
+    "ativo": true,
+    "created_at": "2026-11-19T15:08:55.732Z"
+  },
+  {
+    "id": "e80a27c8-a196-47e8-9359-7b7ffc836498",
+    "nome": "neusa landim",
+    "email": "landim@gmail.com",
+    "telefone": "95652222",
+    "horario": "05:00 - Madrugada",
+    "preco_aplicado": 3500,
+    "password_hash": "$2b$10$CBrWnQCaYnfLvVwW8U47IO31UKB2XtKOEK.rmTiR6A0lBCwYdbmfm",
+    "ativo": true,
+    "created_at": "2026-11-19T12:09:43.395Z"
+  },
+  {
+    "id": "e5591a5f-bd79-4c96-bf6b-4d977968ecfa",
+    "nome": "Maria Julia",
+    "email": "mariajulia@gmail.com",
+    "telefone": "9155550",
+    "horario": "05:00 - Madrugada",
+    "preco_aplicado": 3500,
+    "password_hash": "$2b$10$dXioGOP3VYVLCMmUL8j9IeScwI4lKPdr/yU586wO6xy4nF47ehKUu",
+    "ativo": true,
+    "created_at": "2026-11-19T11:58:50.809Z"
+  }
+]
