@@ -45,6 +45,36 @@
         </div>
       </div>
 
+      
+      <div id="blocoIniciarAulaAdmin" class="bg-slate-900 border border-emerald-500/40 rounded-xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-emerald-400">Iniciar Aula Online &amp; Gravação (1 Clique)</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Clique no turno para abrir a sala de vídeo ao vivo com os atletas e iniciar a gravação.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="iniciarAulaTreinador('05:00')" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm">
+              Iniciar Aula 05:00
+            </button>
+            <button type="button" onclick="iniciarAulaTreinador('18:00')" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+              Iniciar Aula 18:00
+            </button>
+            <button type="button" id="btnFecharSalaAdmin" onclick="fecharAulaTreinador()" class="hidden px-3 py-2 rounded-lg bg-rose-700 hover:bg-rose-600 text-white font-semibold text-sm">
+              Encerrar Sala
+            </button>
+          </div>
+        </div>
+        <div id="salaTreinadorContainer" class="hidden space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
+            <span id="salaTreinadorInfo">Sala ativa</span>
+            <a id="salaTreinadorLinkExterno" href="#" target="_blank" rel="noopener" class="text-sky-400 hover:underline">Abrir em ecrã inteiro (recomendado para gravar)</a>
+          </div>
+          <div class="rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video">
+            <iframe id="frameSalaTreinador" class="w-full h-full" allow="camera; microphone; fullscreen; display-capture" allowfullscreen></iframe>
+          </div>
+        </div>
+      </div>
+  
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <p class="text-xs text-slate-400 uppercase">Total de Atletas</p>
@@ -411,5 +441,39 @@
       carregarAulasAdmin();
     }
   </script>
+
+  <script>
+    async function iniciarAulaTreinador(turno) {
+      let salaNome = turno === "18:00" ? "CrossHitBox-Tae-1800" : "CrossHitBox-Tae-0500";
+      let urlFinal = "";
+      try {
+        const res = await fetch("/api/crosshitbox/aulas");
+        const data = await res.json();
+        if (data.success && data.chamadas && data.chamadas[turno]) {
+          salaNome = data.chamadas[turno].sala || salaNome;
+          if (data.chamadas[turno].urlExterna) {
+            urlFinal = data.chamadas[turno].urlExterna;
+          }
+        }
+      } catch {}
+
+      if (!urlFinal) {
+        urlFinal = "https://meet.jit.si/" + salaNome + "#userInfo.displayName=%22Treinador%20Silvio%22";
+      }
+
+      document.getElementById("salaTreinadorInfo").textContent = "Transmissão ao vivo ativa — Turno " + turno + " (Sala: " + salaNome + ")";
+      document.getElementById("salaTreinadorLinkExterno").href = urlFinal;
+      document.getElementById("frameSalaTreinador").src = urlFinal;
+      document.getElementById("salaTreinadorContainer").classList.remove("hidden");
+      document.getElementById("btnFecharSalaAdmin").classList.remove("hidden");
+    }
+
+    function fecharAulaTreinador() {
+      document.getElementById("frameSalaTreinador").src = "";
+      document.getElementById("salaTreinadorContainer").classList.add("hidden");
+      document.getElementById("btnFecharSalaAdmin").classList.add("hidden");
+    }
+  </script>
+  
 </body>
 </html>
