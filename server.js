@@ -42,7 +42,14 @@ function escreverJsonLocal(nomeFicheiro, dados) {
   } catch {}
 }
 
+
+const { createClient: _createSbClient } = require("@supabase/supabase-js");
+global.__sbCrossHitBox = (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY)
+  ? _createSbClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+  : null;
+
 function obterClienteSupabase() {
+  if (global.__sbCrossHitBox) return global.__sbCrossHitBox;
   if (typeof supabase !== "undefined" && supabase) return supabase;
   if (global.supabase) return global.supabase;
   return null;
