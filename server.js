@@ -436,6 +436,7 @@ app.get("/fundo-crosshitbox-tae.jpg", (req, res) => {
   const opcoes = [
     path.join(__dirname, "fundo-crosshitbox-tae.jpg"),
     path.join(__dirname, "fundo-crosshitbox-tae.png"),
+    path.join(__dirname, "fundo-crosshitbox-tae.jpg.jpeg"),
     path.join(__dirname, "KOSMO CROSSHITBOX TAE.jpeg")
   ];
   for (const p of opcoes) {
