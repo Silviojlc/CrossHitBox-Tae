@@ -226,6 +226,42 @@ app.post("/api/crosshitbox/wod/resultado", async (req, res) => {
   res.status(201).json({ ok: true, resultado: reg });
 });
 
+
+app.get("/api/crosshitbox/evolucao", async (req, res) => {
+  const sb = obterClienteSupabase();
+  let evolucoes = lerJsonLocal("evolucao_local.json");
+  if (sb) {
+    try {
+      const r = await sb.from("evolucao_crosshitbox").select("*").order("data", { ascending: false }).limit(300);
+      if (!r.error && Array.isArray(r.data) && r.data.length) evolucoes = r.data;
+    } catch {}
+  }
+  res.json({ evolucoes });
+});
+
+app.post("/api/crosshitbox/evolucao", async (req, res) => {
+  const b = req.body || {};
+  if (!b.email) return res.status(400).json({ erro: "Email obrigatorio." });
+  const reg = {
+    id: String(b.id || (String(b.email).trim().toLowerCase() + "_" + Date.now())),
+    email: String(b.email).trim().toLowerCase(),
+    nome: String(b.nome || b.email).trim(),
+    data: String(b.data || new Date().toISOString().slice(0, 10)),
+    peso_kg: b.peso_kg || null,
+    cintura_cm: b.cintura_cm || null,
+    teste_fisico: String(b.teste_fisico || "Avaliação Física"),
+    resultado_teste: String(b.resultado_teste || "-"),
+    observacao: String(b.observacao || ""),
+    atualizado_em: new Date().toISOString()
+  };
+  const local = lerJsonLocal("evolucao_local.json");
+  local.unshift(reg);
+  escreverJsonLocal("evolucao_local.json", local);
+  const sb = obterClienteSupabase();
+  if (sb) { try { await sb.from("evolucao_crosshitbox").upsert([reg], { onConflict: "id" }); } catch {} }
+  res.status(201).json({ ok: true, evolucao: reg });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
