@@ -464,7 +464,7 @@
       document.getElementById("salaTreinadorInfo").textContent = "Transmissão ao vivo ativa — Turno " + turno + " (Sala: " + salaNome + ")";
       document.getElementById("salaTreinadorLinkExterno").href = urlFinal;
       document.getElementById("frameSalaTreinador").src = urlFinal;
-      document.getElementById("salaTreinadorContainer").classList.remove("hidden");
+      window.open(urlFinal, "_blank", "noopener"); document.getElementById("salaTreinadorContainer").classList.remove("hidden");
       document.getElementById("btnFecharSalaAdmin").classList.remove("hidden");
     }
 
