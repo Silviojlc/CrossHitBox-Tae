@@ -35,7 +35,22 @@
     </div>
 
     <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-      <table class="w-full text-left text-sm">
+      
+    <div id="blocoPrecoAulas" class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-wrap items-center justify-between gap-4 my-6">
+      <div>
+        <h2 class="text-base font-bold text-amber-400">Preço das Aulas (CrossHitBox Tae)</h2>
+        <p id="precoAtualInfo" class="text-xs text-slate-400 mt-0.5">A carregar preço atual...</p>
+      </div>
+      <form id="precoForm" class="flex flex-wrap items-center gap-2">
+        <input id="inputPreco" type="number" min="0" step="1" required placeholder="Valor em ECV" class="w-40 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+        <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+          Guardar Preço
+        </button>
+      </form>
+      <p id="precoMsg" class="w-full text-xs text-emerald-400"></p>
+    </div>
+  
+    <table class="w-full text-left text-sm">
         <thead class="bg-slate-800/70 text-slate-300">
           <tr>
             <th class="p-3">Nome</th>
@@ -179,5 +194,38 @@
     carregarMembros();
     carregarAulasAdmin();
   </script>
+
+  <script>
+    async function carregarPrecoCrossHitBox() {
+      try {
+        const res = await fetch("/api/crosshitbox/preco");
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById("inputPreco").value = data.preco;
+          document.getElementById("precoAtualInfo").textContent = "Valor ativo aplicado nas novas inscrições: " + data.preco + " ECV";
+        }
+      } catch {}
+    }
+
+    document.getElementById("precoForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const valor = Number(document.getElementById("inputPreco").value);
+      const res = await fetch("/api/crosshitbox/preco", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preco: valor })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById("precoAtualInfo").textContent = "Valor ativo aplicado nas novas inscrições: " + data.preco + " ECV";
+        document.getElementById("precoMsg").textContent = "Preço atualizado para " + data.preco + " ECV.";
+      } else {
+        document.getElementById("precoMsg").textContent = data.error || "Erro ao guardar preço.";
+      }
+    });
+
+    carregarPrecoCrossHitBox();
+  </script>
+  
 </body>
 </html>
