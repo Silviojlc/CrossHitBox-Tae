@@ -450,9 +450,12 @@
         const res = await fetch("/api/crosshitbox/aulas");
         const data = await res.json();
         if (data.success && data.chamadas && data.chamadas[turno]) {
-          salaNome = data.chamadas[turno].sala || salaNome;
-          if (data.chamadas[turno].urlExterna) {
-            urlFinal = data.chamadas[turno].urlExterna;
+          const cfg = data.chamadas[turno];
+          if (cfg.sala && !cfg.sala.toLowerCase().includes("varanda")) {
+            salaNome = cfg.sala;
+          }
+          if (cfg.urlExterna) {
+            urlFinal = cfg.urlExterna;
           }
         }
       } catch {}
@@ -461,10 +464,10 @@
         urlFinal = "https://meet.jit.si/" + salaNome + "#userInfo.displayName=%22Treinador%20Silvio%22";
       }
 
-      document.getElementById("salaTreinadorInfo").textContent = "Transmissão ao vivo ativa — Turno " + turno + " (Sala: " + salaNome + ")";
+      window.open(urlFinal, "_blank", "noopener");
+      document.getElementById("salaTreinadorInfo").textContent = "Aula aberta em nova janela — Turno " + turno + " (" + salaNome + ")";
       document.getElementById("salaTreinadorLinkExterno").href = urlFinal;
-      document.getElementById("frameSalaTreinador").src = urlFinal;
-      window.open(urlFinal, "_blank", "noopener"); document.getElementById("salaTreinadorContainer").classList.remove("hidden");
+      document.getElementById("salaTreinadorContainer").classList.remove("hidden");
       document.getElementById("btnFecharSalaAdmin").classList.remove("hidden");
     }
 

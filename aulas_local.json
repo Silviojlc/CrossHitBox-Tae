@@ -1,0 +1,32 @@
+{
+  "chamadas": {
+    "05:00": {
+      "titulo": "Aula Ao Vivo — Turno 05:00 (Madrugada)",
+      "sala": "CrossHitBox-Tae-0500",
+      "urlExterna": "",
+      "ativa": true
+    },
+    "18:00": {
+      "titulo": "Aula Ao Vivo — Turno 18:00 (Tarde)",
+      "sala": "CrossHitBox-Tae-1800",
+      "urlExterna": "",
+      "ativa": true
+    }
+  },
+  "videos": [
+    {
+      "id": "vid-05-1",
+      "titulo": "Aquecimento Dinâmico & Mobilidade — 05:00",
+      "turno": "05:00 - Madrugada",
+      "duracao": "18 min",
+      "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+    },
+    {
+      "id": "vid-18-1",
+      "titulo": "Condicionamento Metabólico Tae — 18:00",
+      "turno": "18:00 - Tarde",
+      "duracao": "35 min",
+      "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+    }
+  ]
+}
