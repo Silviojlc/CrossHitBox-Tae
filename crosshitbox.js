@@ -1,6 +1,8 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
 const crypto = require("crypto");
 
 const DB_LOCAL_PATH = path.join(__dirname, "membros_local.json");
