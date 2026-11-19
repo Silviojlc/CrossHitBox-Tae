@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CrossHitBox Tae — Ginásio Kosmo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold text-amber-400">CROSSHITBOX TAE</h1>
+      <p class="text-sm text-slate-400 mt-1">Ginásio Kosmo • Turnos 05:00 e 18:00</p>
+    </div>
+
+    <form id="registoForm" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nome Completo</label>
+        <input id="nome" type="text" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">E-mail</label>
+        <input id="email" type="email" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Telefone / Telemóvel</label>
+        <input id="telefone" type="text" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Turno / Horário</label>
+        <select id="horario" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white">
+          <option value="05:00 - Madrugada">05:00 — Madrugada</option>
+          <option value="18:00 - Tarde">18:00 — Tarde</option>
+        </select>
+      </div>
+
+      <button type="submit" class="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition">
+        Confirmar Inscrição
+      </button>
+    </form>
+
+    <div id="resposta" class="hidden mt-4 p-4 rounded-lg text-sm"></div>
+
+    <div class="mt-6 text-center">
+      <a href="/admin.html" class="text-xs text-slate-400 hover:text-amber-400 underline">Abrir Painel de Administração</a>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('registoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const respDiv = document.getElementById('resposta');
+      respDiv.classList.remove('hidden');
+
+      const payload = {
+        nome: document.getElementById('nome').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        horario: document.getElementById('horario').value
+      };
+
+      try {
+        const res = await fetch('/api/crosshitbox/registar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          respDiv.className = 'mt-4 p-4 rounded-lg text-sm bg-emerald-950 border border-emerald-700 text-emerald-200';
+          respDiv.innerHTML = `
+            <p class="font-bold mb-1">Inscrição concluída com sucesso.</p>
+            <p>Preço aplicado: <strong>${data.precoAplicado} ECV</strong></p>
+            <p>Password temporária: <span class="font-mono bg-slate-900 px-2 py-0.5 rounded">${data.passwordTemporaria}</span></p>
+          `;
+          e.target.reset();
+        } else {
+          respDiv.className = 'mt-4 p-4 rounded-lg text-sm bg-rose-950 border border-rose-700 text-rose-200';
+          respDiv.textContent = `Erro: ${data.error || 'Falha ao registar.'}`;
+        }
+      } catch (err) {
+        respDiv.className = 'mt-4 p-4 rounded-lg text-sm bg-rose-950 border border-rose-700 text-rose-200';
+        respDiv.textContent = `Erro de ligação: ${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

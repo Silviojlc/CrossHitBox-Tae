@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — CrossHitBox Tae</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen p-6">
+  <div class="max-w-5xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-amber-400">Painel Administrativo — CrossHitBox Tae</h1>
+        <p class="text-sm text-slate-400">Gestão de atletas inscritos (05:00 e 18:00)</p>
+      </div>
+      <a href="/" class="text-sm text-slate-300 hover:text-amber-400 underline">Voltar ao Formulário</a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <p class="text-xs text-slate-400 uppercase">Total de Atletas</p>
+        <p id="totalMembros" class="text-2xl font-bold mt-1">0</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <p class="text-xs text-slate-400 uppercase">Turno 05:00</p>
+        <p id="totalManha" class="text-2xl font-bold mt-1">0</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <p class="text-xs text-slate-400 uppercase">Turno 18:00</p>
+        <p id="totalTarde" class="text-2xl font-bold mt-1">0</p>
+      </div>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-800/70 text-slate-300">
+          <tr>
+            <th class="p-3">Nome</th>
+            <th class="p-3">E-mail</th>
+            <th class="p-3">Telefone</th>
+            <th class="p-3">Turno</th>
+            <th class="p-3">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaMembros" class="divide-y divide-slate-800"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    async function carregarMembros() {
+      const res = await fetch('/api/crosshitbox/membros');
+      const data = await res.json();
+      const tbody = document.getElementById('tabelaMembros');
+      tbody.innerHTML = '';
+
+      if (!data.success) return;
+      const membros = data.membros || [];
+      document.getElementById('totalMembros').textContent = membros.length;
+      document.getElementById('totalManha').textContent = membros.filter(m => (m.horario || '').includes('05:00')).length;
+      document.getElementById('totalTarde').textContent = membros.filter(m => (m.horario || '').includes('18:00')).length;
+
+      for (const m of membros) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-3">${m.nome || ''}</td>
+          <td class="p-3">${m.email || ''}</td>
+          <td class="p-3">${m.telefone || '-'}</td>
+          <td class="p-3">${m.horario || ''}</td>
+          <td class="p-3">
+            <button onclick="removerMembro('${m.id}')" class="px-2.5 py-1 rounded bg-rose-700 hover:bg-rose-600 text-xs">Remover</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function removerMembro(id) {
+      await fetch(`/api/crosshitbox/membros/${id}`, { method: 'DELETE' });
+      carregarMembros();
+    }
+
+    carregarMembros();
+  </script>
+</body>
+</html>
