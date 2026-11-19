@@ -178,6 +178,54 @@ app.post("/api/crosshitbox/pagamentos", async (req, res) => {
   res.status(201).json({ ok: true, pagamento: registo });
 });
 
+
+app.get("/api/crosshitbox/wod", async (req, res) => {
+  const sb = obterClienteSupabase();
+  let wods = lerJsonLocal("wod_local.json");
+  let resultados = lerJsonLocal("wod_resultados_local.json");
+  if (sb) {
+    try {
+      const r1 = await sb.from("wod_crosshitbox").select("*").order("data", { ascending: false }).limit(30);
+      if (!r1.error && Array.isArray(r1.data) && r1.data.length) wods = r1.data;
+      const r2 = await sb.from("wod_resultados_crosshitbox").select("*").order("atualizado_em", { ascending: false }).limit(200);
+      if (!r2.error && Array.isArray(r2.data) && r2.data.length) resultados = r2.data;
+    } catch {}
+  }
+  res.json({ wods, resultados });
+});
+
+app.post("/api/crosshitbox/wod", async (req, res) => {
+  const b = req.body || {};
+  if (!b.titulo || !b.descricao) return res.status(400).json({ erro: "Titulo e descricao obrigatorios." });
+  const data = String(b.data || new Date().toISOString().slice(0, 10));
+  const turno = String(b.turno || "TODOS");
+  const id = String(b.id || (data + "_" + turno));
+  const reg = { id, data, turno, titulo: String(b.titulo), tipo: String(b.tipo || "AMRAP"), descricao: String(b.descricao), atualizado_em: new Date().toISOString() };
+  const local = lerJsonLocal("wod_local.json");
+  const idx = local.findIndex((x) => x.id === id);
+  if (idx >= 0) local[idx] = reg; else local.unshift(reg);
+  escreverJsonLocal("wod_local.json", local);
+  const sb = obterClienteSupabase();
+  if (sb) { try { await sb.from("wod_crosshitbox").upsert([reg], { onConflict: "id" }); } catch {} }
+  res.status(201).json({ ok: true, wod: reg });
+});
+
+app.post("/api/crosshitbox/wod/resultado", async (req, res) => {
+  const b = req.body || {};
+  if (!b.email || !b.resultado) return res.status(400).json({ erro: "Email e resultado obrigatorios." });
+  const data = String(b.data || new Date().toISOString().slice(0, 10));
+  const email = String(b.email).trim().toLowerCase();
+  const id = String(b.id || (data + "_" + email));
+  const reg = { id, data, turno: String(b.turno || "05:00 - Madrugada"), email, nome: String(b.nome || email), resultado: String(b.resultado), observacao: String(b.observacao || ""), atualizado_em: new Date().toISOString() };
+  const local = lerJsonLocal("wod_resultados_local.json");
+  const idx = local.findIndex((x) => x.id === id);
+  if (idx >= 0) local[idx] = reg; else local.unshift(reg);
+  escreverJsonLocal("wod_resultados_local.json", local);
+  const sb = obterClienteSupabase();
+  if (sb) { try { await sb.from("wod_resultados_crosshitbox").upsert([reg], { onConflict: "id" }); } catch {} }
+  res.status(201).json({ ok: true, resultado: reg });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
