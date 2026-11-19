@@ -6,7 +6,7 @@
     descanso: 20,
     roundsTotal: 8,
     roundAtual: 1,
-    fase: "PRONTO", // PRONTO | TRABALHO | DESCANSO | CONCLUIDO
+    fase: "PRONTO",
     segundosRestantes: 40,
     ativo: false,
     intervaloId: null
@@ -150,7 +150,7 @@
 
   const container = document.createElement("section");
   container.id = "hiitTimerModulo";
-  container.className = "max-w-6xl mx-auto my-6 bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-xl transition-colors";
+  container.className = "hidden max-w-6xl mx-auto my-6 bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-xl transition-colors";
   container.innerHTML = `
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div>
@@ -197,5 +197,25 @@
   `;
 
   document.body.appendChild(container);
+
+  function sincronizarVisibilidadeSessao() {
+    const el = document.getElementById("hiitTimerModulo");
+    if (!el) return;
+    const candidatos = Array.from(document.querySelectorAll("section, main, div")).filter((node) => {
+      if (node.id === "hiitTimerModulo" || node.id === "alertasClinicosModulo") return false;
+      const txt = (node.textContent || "");
+      const temConteudoInterno = txt.includes("Sessão ativa como:") || txt.includes("Configurar Sala de Videochamada") || txt.includes("Vídeos de Aulas Gravadas") || txt.includes("Ficha de Treino");
+      const visivel = node.offsetParent !== null && getComputedStyle(node).display !== "none";
+      return temConteudoInterno && visivel && node.offsetHeight > 120;
+    });
+    if (candidatos.length > 0) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  }
+
+  setInterval(sincronizarVisibilidadeSessao, 400);
+  sincronizarVisibilidadeSessao();
   atualizarUI();
 })();
