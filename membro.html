@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Área do Atleta — CrossHitBox Tae</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen p-6">
+  <div class="max-w-5xl mx-auto">
+    <div id="loginBox" class="max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 mt-10 shadow-xl">
+      <h1 class="text-2xl font-bold text-amber-400 text-center">ÁREA DO ATLETA</h1>
+      <p class="text-xs text-slate-400 text-center mt-1">CrossHitBox Tae • Vídeos Gravados &amp; Aula Online</p>
+
+      <form id="loginForm" class="space-y-4 mt-6">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">E-mail da Inscrição</label>
+          <input id="loginEmail" type="email" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password Temporária / Acesso</label>
+          <input id="loginPass" type="password" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition">
+          Entrar na Minha Conta
+        </button>
+      </form>
+      <p id="loginErro" class="hidden mt-3 text-sm text-rose-400 text-center"></p>
+      <div class="mt-5 text-center">
+        <a href="/" class="text-xs text-slate-400 hover:text-amber-400 underline">Voltar à Inscrição</a>
+      </div>
+    </div>
+
+    <div id="portalBox" class="hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div>
+          <p class="text-xs uppercase text-amber-400 font-semibold">Atleta Autenticado</p>
+          <h2 id="atletaNome" class="text-xl font-bold mt-0.5"></h2>
+          <p id="atletaTurno" class="text-sm text-slate-400"></p>
+        </div>
+        <button onclick="sair()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">
+          Terminar Sessão
+        </button>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-amber-400">Aula Online por Videochamada</h3>
+            <p id="chamadaTitulo" class="text-sm text-slate-300"></p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="alternarSala()" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm">
+              Entrar / Ocultar Sala
+            </button>
+            <a id="linkExternoChamada" href="#" target="_blank" rel="noopener" class="hidden px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm">
+              Abrir em Nova Janela
+            </a>
+          </div>
+        </div>
+        <div id="containerChamada" class="hidden rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video">
+          <iframe id="frameChamada" class="w-full h-full" allow="camera; microphone; fullscreen; display-capture" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-lg font-bold text-amber-400">Vídeos de Aulas Gravadas</h3>
+          <select id="filtroTurno" onchange="renderVideos()" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+            <option value="TODOS">Todos os Turnos</option>
+            <option value="05:00">Turno 05:00 (Madrugada)</option>
+            <option value="18:00">Turno 18:00 (Tarde)</option>
+          </select>
+        </div>
+        <div id="listaVideos" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let videosCache = [];
+    let chamadaAtual = null;
+    let atletaAtual = null;
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const erroEl = document.getElementById('loginErro');
+      erroEl.classList.add('hidden');
+
+      const res = await fetch('/api/crosshitbox/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('loginEmail').value.trim(),
+          password: document.getElementById('loginPass').value
+        })
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        erroEl.textContent = data.error || 'Falha no login.';
+        erroEl.classList.remove('hidden');
+        return;
+      }
+
+      atletaAtual = data.membro;
+      chamadaAtual = data.chamada;
+      videosCache = data.videos || [];
+
+      document.getElementById('loginBox').classList.add('hidden');
+      document.getElementById('portalBox').classList.remove('hidden');
+      document.getElementById('atletaNome').textContent = atletaAtual.nome;
+      document.getElementById('atletaTurno').textContent = `Turno inscrito: ${atletaAtual.horario} • ${atletaAtual.email}`;
+      document.getElementById('chamadaTitulo').textContent = chamadaAtual ? chamadaAtual.titulo : 'Sala de treino online';
+
+      if (chamadaAtual && chamadaAtual.urlExterna) {
+        const ext = document.getElementById('linkExternoChamada');
+        ext.href = chamadaAtual.urlExterna;
+        ext.classList.remove('hidden');
+      }
+
+      renderVideos();
+    });
+
+    function alternarSala() {
+      const box = document.getElementById('containerChamada');
+      const frame = document.getElementById('frameChamada');
+      const estaOculta = box.classList.contains('hidden');
+
+      if (estaOculta) {
+        const sala = (chamadaAtual && chamadaAtual.sala) || 'Kosmo-CrossHitBox-Tae';
+        const nomeUser = encodeURIComponent((atletaAtual && atletaAtual.nome) || 'Atleta Kosmo');
+        const destino = (chamadaAtual && chamadaAtual.urlExterna)
+          ? chamadaAtual.urlExterna
+          : `https://meet.jit.si/${sala}#userInfo.displayName="${nomeUser}"`;
+        frame.src = destino;
+        box.classList.remove('hidden');
+      } else {
+        frame.src = '';
+        box.classList.add('hidden');
+      }
+    }
+
+    function renderVideos() {
+      const filtro = document.getElementById('filtroTurno').value;
+      const lista = document.getElementById('listaVideos');
+      lista.innerHTML = '';
+
+      const filtrados = videosCache.filter((v) => {
+        if (filtro === 'TODOS') return true;
+        return (v.turno || '').includes(filtro);
+      });
+
+      if (filtrados.length === 0) {
+        lista.innerHTML = '<p class="text-sm text-slate-400 col-span-2">Sem vídeos gravados para este filtro.</p>';
+        return;
+      }
+
+      for (const v of filtrados) {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col';
+        card.innerHTML = `
+          <div class="aspect-video bg-black">
+            <iframe src="${v.videoUrl}" class="w-full h-full" allowfullscreen></iframe>
+          </div>
+          <div class="p-3">
+            <p class="font-bold text-sm text-white">${v.titulo}</p>
+            <p class="text-xs text-slate-400 mt-1">${v.turno} • ${v.duracao}</p>
+          </div>
+        `;
+        lista.appendChild(card);
+      }
+    }
+
+    function sair() {
+      document.getElementById('frameChamada').src = '';
+      document.getElementById('portalBox').classList.add('hidden');
+      document.getElementById('loginBox').classList.remove('hidden');
+      document.getElementById('loginForm').reset();
+    }
+  </script>
+</body>
+</html>
