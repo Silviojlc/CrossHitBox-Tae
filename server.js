@@ -761,6 +761,44 @@ app.delete("/api/crosshitbox/membros/:email", async (req, res) => {
   res.json({ ok: true, excluido: em, excluidos: exclArr });
 });
 
+
+app.get("/api/crosshitbox/fotos-avaliacao", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const emailFiltro = String((req.query && req.query.email) || "").trim().toLowerCase();
+  let fotos = lerJsonLocal("fotos_avaliacao_local.json");
+  if (!Array.isArray(fotos)) fotos = [];
+  if (emailFiltro) fotos = fotos.filter((f) => String((f && f.email) || "").toLowerCase() === emailFiltro);
+  res.json({ fotos });
+});
+
+app.post("/api/crosshitbox/fotos-avaliacao", async (req, res) => {
+  const b = req.body || {};
+  if (!b.email || !b.imagem_url) return res.status(400).json({ erro: "Email e imagem obrigatorios." });
+  const item = {
+    id: String(b.id || ("FAV-" + Date.now())),
+    email: String(b.email).trim().toLowerCase(),
+    parte_corpo: String(b.parte_corpo || "Avaliação Física"),
+    observacao: String(b.observacao || ""),
+    imagem_url: String(b.imagem_url),
+    data: String(b.data || new Date().toISOString().slice(0, 10)),
+    criado_em: String(b.criado_em || new Date().toISOString())
+  };
+  let fotos = lerJsonLocal("fotos_avaliacao_local.json");
+  if (!Array.isArray(fotos)) fotos = [];
+  fotos.unshift(item);
+  escreverJsonLocal("fotos_avaliacao_local.json", fotos);
+  res.status(201).json({ ok: true, foto: item, fotos });
+});
+
+app.delete("/api/crosshitbox/fotos-avaliacao/:id", async (req, res) => {
+  const idAlvo = String(req.params.id || "").trim();
+  let fotos = lerJsonLocal("fotos_avaliacao_local.json");
+  if (!Array.isArray(fotos)) fotos = [];
+  fotos = fotos.filter((f) => String(f.id) !== idAlvo);
+  escreverJsonLocal("fotos_avaliacao_local.json", fotos);
+  res.json({ ok: true, removido: idAlvo, fotos });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
