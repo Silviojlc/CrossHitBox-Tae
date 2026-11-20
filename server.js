@@ -825,6 +825,108 @@ app.delete("/api/crosshitbox/pagamentos/:id", async (req, res) => {
   res.json({ ok: true, removido: idAlvo, pagamentos: atuais });
 });
 
+
+const PASTA_DADOS_CHB = path.join(__dirname, "dados_persistentes_chb");
+if (!fs.existsSync(PASTA_DADOS_CHB)) {
+  try { fs.mkdirSync(PASTA_DADOS_CHB, { recursive: true }); } catch {}
+}
+
+function lerArquivoPersistenteCHB(nomeArq) {
+  const caminho = path.join(PASTA_DADOS_CHB, nomeArq);
+  try {
+    if (fs.existsSync(caminho)) {
+      const txt = fs.readFileSync(caminho, "utf8");
+      const parsed = JSON.parse(txt);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch {}
+  try {
+    if (typeof lerJsonLocal === "function") {
+      const alt = lerJsonLocal(nomeArq);
+      if (Array.isArray(alt)) return alt;
+    }
+  } catch {}
+  return [];
+}
+
+function gravarArquivoPersistenteCHB(nomeArq, arr) {
+  const lista = Array.isArray(arr) ? arr : [];
+  const caminho = path.join(PASTA_DADOS_CHB, nomeArq);
+  try { fs.writeFileSync(caminho, JSON.stringify(lista), "utf8"); } catch {}
+  try {
+    if (typeof escreverJsonLocal === "function") escreverJsonLocal(nomeArq, lista);
+  } catch {}
+}
+
+app.get("/api/crosshitbox/fotos-avaliacao", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const emailFiltro = String((req.query && req.query.email) || "").trim().toLowerCase();
+  let fotos = lerArquivoPersistenteCHB("fotos_avaliacao_local.json");
+
+  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
+  if (sb) {
+    try {
+      const r = await sb.from("membros").select("email, foto_url, fotos_avaliacao").limit(500);
+      if (!r.error && Array.isArray(r.data)) {
+        const mapaIds = new Map(fotos.map((x) => [String(x.id), x]));
+        for (const m of r.data) {
+          if (Array.isArray(m.fotos_avaliacao)) {
+            for (const f of m.fotos_avaliacao) {
+              if (f && f.id) mapaIds.set(String(f.id), f);
+            }
+          }
+        }
+        fotos = Array.from(mapaIds.values());
+        gravarArquivoPersistenteCHB("fotos_avaliacao_local.json", fotos);
+      }
+    } catch {}
+  }
+
+  if (emailFiltro) {
+    fotos = fotos.filter((f) => String((f && f.email) || "").trim().toLowerCase() === emailFiltro);
+  }
+  res.json({ fotos });
+});
+
+app.post("/api/crosshitbox/fotos-avaliacao", async (req, res) => {
+  const b = req.body || {};
+  if (!b.email || !b.imagem_url) return res.status(400).json({ ok: false, erro: "Email e imagem obrigatorios." });
+
+  const em = String(b.email).trim().toLowerCase();
+  const item = {
+    id: String(b.id || ("FAV-" + Date.now() + "-" + Math.floor(Math.random() * 1000))),
+    email: em,
+    parte_corpo: String(b.parte_corpo || "Avaliação Física"),
+    observacao: String(b.observacao || ""),
+    imagem_url: String(b.imagem_url),
+    data: String(b.data || new Date().toISOString().slice(0, 10)),
+    criado_em: String(b.criado_em || new Date().toISOString())
+  };
+
+  let fotos = lerArquivoPersistenteCHB("fotos_avaliacao_local.json");
+  fotos = fotos.filter((x) => String(x.id) !== item.id);
+  fotos.unshift(item);
+  gravarArquivoPersistenteCHB("fotos_avaliacao_local.json", fotos);
+
+  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
+  if (sb) {
+    try {
+      const fotosDoAtleta = fotos.filter((x) => x.email === em).slice(0, 20);
+      await sb.from("membros").upsert([{ email: em, fotos_avaliacao: fotosDoAtleta }], { onConflict: "email" });
+    } catch {}
+  }
+
+  res.status(201).json({ ok: true, foto: item, fotos });
+});
+
+app.delete("/api/crosshitbox/fotos-avaliacao/:id", async (req, res) => {
+  const idAlvo = decodeURIComponent(String(req.params.id || "")).trim();
+  let fotos = lerArquivoPersistenteCHB("fotos_avaliacao_local.json");
+  fotos = fotos.filter((f) => String(f.id) !== idAlvo);
+  gravarArquivoPersistenteCHB("fotos_avaliacao_local.json", fotos);
+  res.json({ ok: true, removido: idAlvo, fotos });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
