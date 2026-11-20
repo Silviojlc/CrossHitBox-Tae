@@ -670,6 +670,97 @@ app.delete("/api/crosshitbox/membros/:email", async (req, res) => {
   res.json({ ok: true, excluido: em, excluidos: exclArr });
 });
 
+
+const TABELAS_MEMBROS_CANDIDATAS = ["membros", "atletas", "usuarios", "perfis", "inscricoes"];
+
+async function obterSetExcluidosGlobal() {
+  const setEx = new Set();
+  try {
+    const loc = lerJsonLocal("membros_excluidos_local.json");
+    if (Array.isArray(loc)) loc.forEach((e) => e && setEx.add(String(e).trim().toLowerCase()));
+  } catch {}
+  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
+  if (sb) {
+    try {
+      const r = await sb.from("membros_excluidos_crosshitbox").select("email").limit(2000);
+      if (!r.error && Array.isArray(r.data)) {
+        r.data.forEach((row) => row && row.email && setEx.add(String(row.email).trim().toLowerCase()));
+      }
+    } catch {}
+  }
+  return setEx;
+}
+
+function filtrarObjetoMembros(obj, setEx) {
+  if (!obj || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.filter((item) => {
+      if (!item || typeof item !== "object") return true;
+      const em = String(item.email || item.correo || item.user_email || "").trim().toLowerCase();
+      return !em || !setEx.has(em);
+    });
+  }
+  const copia = Object.assign({}, obj);
+  for (const k of ["membros", "atletas", "usuarios", "perfis", "data", "rows", "items"]) {
+    if (Array.isArray(copia[k])) {
+      copia[k] = filtrarObjetoMembros(copia[k], setEx);
+    }
+  }
+  return copia;
+}
+
+app.use(async (req, res, next) => {
+  if (req.method !== "GET") return next();
+  const rota = (req.path || "").toLowerCase();
+  if (!rota.startsWith("/api/")) return next();
+  if (rota.includes("excluidos")) return next();
+
+  const origJson = res.json.bind(res);
+  res.json = async (payload) => {
+    try {
+      const setEx = await obterSetExcluidosGlobal();
+      if (setEx.size > 0) {
+        return origJson(filtrarObjetoMembros(payload, setEx));
+      }
+    } catch {}
+    return origJson(payload);
+  };
+  next();
+});
+
+app.delete("/api/crosshitbox/membros/:email", async (req, res) => {
+  const em = decodeURIComponent(String(req.params.email || "")).trim().toLowerCase();
+  if (!em) return res.status(400).json({ erro: "Email obrigatorio." });
+
+  const setEx = await obterSetExcluidosGlobal();
+  setEx.add(em);
+  const exclArr = Array.from(setEx);
+  try { escreverJsonLocal("membros_excluidos_local.json", exclArr); } catch {}
+
+  for (const arq of ["perfis_completos_local.json", "membros_local.json", "atletas_local.json", "usuarios_local.json"]) {
+    try {
+      const atual = lerJsonLocal(arq);
+      if (Array.isArray(atual)) {
+        escreverJsonLocal(arq, atual.filter((x) => String((x && x.email) || "").trim().toLowerCase() !== em));
+      }
+    } catch {}
+  }
+
+  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
+  if (sb) {
+    try {
+      await sb.from("membros_excluidos_crosshitbox").upsert([{ email: em, removido_em: new Date().toISOString() }], { onConflict: "email" });
+    } catch {}
+    for (const tab of TABELAS_MEMBROS_CANDIDATAS) {
+      try {
+        await sb.from(tab).delete().eq("email", em);
+      } catch {}
+    }
+  }
+
+  res.json({ ok: true, excluido: em, excluidos: exclArr });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
