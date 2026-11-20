@@ -203,6 +203,8 @@
   }
 
   window.chbRenderShellWorkspace = function () {
+    const __ativo = document.activeElement;
+    if (__ativo && ["INPUT","TEXTAREA","SELECT"].includes(__ativo.tagName) && document.hasFocus()) return;
     const shell = document.getElementById("workspaceUnificadoCHB");
     if (!shell) return;
     injetarEstilosResponsivos();

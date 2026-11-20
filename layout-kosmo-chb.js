@@ -210,6 +210,8 @@
   }
 
   window.chbRenderLayoutKosmo = function () {
+    const __ativo = document.activeElement;
+    if (__ativo && ["INPUT","TEXTAREA","SELECT"].includes(__ativo.tagName) && document.hasFocus()) return;
     let shell = document.getElementById("layoutKosmoCHB");
     if (!shell) {
       shell = document.createElement("div");

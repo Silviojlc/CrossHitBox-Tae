@@ -216,6 +216,8 @@
   };
 
   window.renderAvaliacaoFotosUI = async function () {
+    const __ativo = document.activeElement;
+    if (__ativo && ["INPUT","TEXTAREA","SELECT"].includes(__ativo.tagName) && document.hasFocus()) return;
     const alvo = document.getElementById("conteudoAvaliacaoFotos");
     if (!alvo) return;
     const isAdmin = detectarAdmin();
