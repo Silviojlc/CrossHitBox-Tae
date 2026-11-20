@@ -728,40 +728,6 @@ app.use(async (req, res, next) => {
   next();
 });
 
-app.delete("/api/crosshitbox/membros/:email", async (req, res) => {
-  const em = decodeURIComponent(String(req.params.email || "")).trim().toLowerCase();
-  if (!em) return res.status(400).json({ erro: "Email obrigatorio." });
-
-  const setEx = await obterSetExcluidosGlobal();
-  setEx.add(em);
-  const exclArr = Array.from(setEx);
-  try { escreverJsonLocal("membros_excluidos_local.json", exclArr); } catch {}
-
-  for (const arq of ["perfis_completos_local.json", "membros_local.json", "atletas_local.json", "usuarios_local.json"]) {
-    try {
-      const atual = lerJsonLocal(arq);
-      if (Array.isArray(atual)) {
-        escreverJsonLocal(arq, atual.filter((x) => String((x && x.email) || "").trim().toLowerCase() !== em));
-      }
-    } catch {}
-  }
-
-  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
-  if (sb) {
-    try {
-      await sb.from("membros_excluidos_crosshitbox").upsert([{ email: em, removido_em: new Date().toISOString() }], { onConflict: "email" });
-    } catch {}
-    for (const tab of TABELAS_MEMBROS_CANDIDATAS) {
-      try {
-        await sb.from(tab).delete().eq("email", em);
-      } catch {}
-    }
-  }
-
-  res.json({ ok: true, excluido: em, excluidos: exclArr });
-});
-
-
 app.get("/api/crosshitbox/fotos-avaliacao", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const emailFiltro = String((req.query && req.query.email) || "").trim().toLowerCase();
@@ -857,67 +823,6 @@ function gravarArquivoPersistenteCHB(nomeArq, arr) {
     if (typeof escreverJsonLocal === "function") escreverJsonLocal(nomeArq, lista);
   } catch {}
 }
-
-app.get("/api/crosshitbox/fotos-avaliacao", async (req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const emailFiltro = String((req.query && req.query.email) || "").trim().toLowerCase();
-  let fotos = lerArquivoPersistenteCHB("fotos_avaliacao_local.json");
-
-  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
-  if (sb) {
-    try {
-      const r = await sb.from("membros").select("email, foto_url, fotos_avaliacao").limit(500);
-      if (!r.error && Array.isArray(r.data)) {
-        const mapaIds = new Map(fotos.map((x) => [String(x.id), x]));
-        for (const m of r.data) {
-          if (Array.isArray(m.fotos_avaliacao)) {
-            for (const f of m.fotos_avaliacao) {
-              if (f && f.id) mapaIds.set(String(f.id), f);
-            }
-          }
-        }
-        fotos = Array.from(mapaIds.values());
-        gravarArquivoPersistenteCHB("fotos_avaliacao_local.json", fotos);
-      }
-    } catch {}
-  }
-
-  if (emailFiltro) {
-    fotos = fotos.filter((f) => String((f && f.email) || "").trim().toLowerCase() === emailFiltro);
-  }
-  res.json({ fotos });
-});
-
-app.post("/api/crosshitbox/fotos-avaliacao", async (req, res) => {
-  const b = req.body || {};
-  if (!b.email || !b.imagem_url) return res.status(400).json({ ok: false, erro: "Email e imagem obrigatorios." });
-
-  const em = String(b.email).trim().toLowerCase();
-  const item = {
-    id: String(b.id || ("FAV-" + Date.now() + "-" + Math.floor(Math.random() * 1000))),
-    email: em,
-    parte_corpo: String(b.parte_corpo || "Avaliação Física"),
-    observacao: String(b.observacao || ""),
-    imagem_url: String(b.imagem_url),
-    data: String(b.data || new Date().toISOString().slice(0, 10)),
-    criado_em: String(b.criado_em || new Date().toISOString())
-  };
-
-  let fotos = lerArquivoPersistenteCHB("fotos_avaliacao_local.json");
-  fotos = fotos.filter((x) => String(x.id) !== item.id);
-  fotos.unshift(item);
-  gravarArquivoPersistenteCHB("fotos_avaliacao_local.json", fotos);
-
-  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
-  if (sb) {
-    try {
-      const fotosDoAtleta = fotos.filter((x) => x.email === em).slice(0, 20);
-      await sb.from("membros").upsert([{ email: em, fotos_avaliacao: fotosDoAtleta }], { onConflict: "email" });
-    } catch {}
-  }
-
-  res.status(201).json({ ok: true, foto: item, fotos });
-});
 
 app.delete("/api/crosshitbox/fotos-avaliacao/:id", async (req, res) => {
   const idAlvo = decodeURIComponent(String(req.params.id || "")).trim();
