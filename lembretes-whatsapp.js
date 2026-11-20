@@ -2,98 +2,144 @@
   if (document.getElementById("lembretesWhatsappModulo")) return;
 
   let sessaoAtiva = false;
-  let cacheMembros = [];
+  let janelaWhatsapp = null;
 
   function detectarAdmin() {
-    const caminho = (window.location.pathname || "").toLowerCase();
+    const p = (window.location.pathname || "").toLowerCase();
     const txt = document.body ? (document.body.innerText || "") : "";
-    return caminho.includes("admin") || txt.includes("Painel Administrativo") || txt.includes("Configurar Sala de Videochamada");
+    return p.includes("admin") || txt.includes("Painel Administrativo") || txt.includes("Configurar Sala de Videochamada");
+  }
+
+  function lerArray(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
   }
 
   function limparTelefoneCV(raw) {
-    const digitos = (raw || "").toString().replace(/\D+/g, "");
-    if (!digitos) return "";
-    if (digitos.length === 7) return "238" + digitos;
-    return digitos;
+    const d = (raw || "").toString().replace(/\D+/g, "");
+    if (!d) return "";
+    return d.length === 7 ? "238" + d : d;
   }
 
-  function gerarTextoModelo() {
-    const tipo = document.getElementById("waTipoModelo")?.value || "AULA";
-    const turno = document.getElementById("waTurnoFiltro")?.value || "05:00";
-    const linkMembro = window.location.origin + "/membro.html";
+  function abrirNaMesmaSessao(telefoneLimpo, texto) {
+    const modoApp = document.getElementById("waModoAppCheck")?.checked;
+    const base = modoApp ? "https://api.whatsapp.com/send" : "https://web.whatsapp.com/send";
+    const params = new URLSearchParams();
+    if (telefoneLimpo) params.set("phone", telefoneLimpo);
+    params.set("text", texto);
+    const url = `${base}?${params.toString()}`;
 
-    if (tipo === "MENSALIDADE") {
-      return `Olá! Passando para lembrar a mensalidade do CrossHitBox Tae (turno ${turno}). Podes enviar o comprovativo diretamente na tua Área do Atleta: ${linkMembro}`;
+    try {
+      if (janelaWhatsapp && !janelaWhatsapp.closed) {
+        janelaWhatsapp.location.href = url;
+        janelaWhatsapp.focus();
+        return;
+      }
+      janelaWhatsapp = window.open(url, "chb_whatsapp_janela");
+      if (janelaWhatsapp) janelaWhatsapp.focus();
+    } catch {
+      window.open(url, "_blank", "noopener");
     }
-    if (tipo === "WOD") {
-      return `Bom treino, equipa CrossHitBox Tae! O WOD de hoje já está disponível e o ranking do turno ${turno} está aberto em: ${linkMembro}`;
-    }
-    return `Olá! Lembrete do treino CrossHitBox Tae (turno ${turno}). Entra na Área do Atleta, faz o teu check-in e prepara-te para o treino: ${linkMembro}`;
   }
 
-  window.waAtualizarModeloTexto = function () {
-    const area = document.getElementById("waMensagemTexto");
-    if (area) area.value = gerarTextoModelo();
+  window.chbEnviarLembreteAula = function (nome, telefone, turno) {
+    const msgPadrao =
+      (document.getElementById("waMensagemModelo")?.value || "").trim() ||
+      "Lembrete CrossHitBox Tae: a nossa aula do turno {TURNO} começa em breve! Prepara o equipamento e mantém o foco.";
+    const texto = msgPadrao
+      .replace(/\{NOME\}/gi, nome || "Atleta")
+      .replace(/\{TURNO\}/gi, turno || "05:00 / 18:00");
+    abrirNaMesmaSessao(limparTelefoneCV(telefone), texto);
   };
 
-  window.waCarregarMembros = async function () {
-    let membros = [];
+  window.chbEnviarLembreteTurno = async function () {
+    const turnoAlvo = document.getElementById("waTurnoFiltro")?.value || "TODOS";
+    let perfis = lerArray("crosshitbox_perfis_completos_v1");
+
     try {
-      const res = await fetch("/api/crosshitbox/membros");
-      if (res.ok) {
-        const data = await res.json();
-        membros = Array.isArray(data) ? data : (data.membros || data.data || []);
+      const r = await fetch("/api/crosshitbox/perfis-completos").catch(() => null);
+      if (r && r.ok) {
+        const d = await r.json();
+        if (Array.isArray(d.perfis) && d.perfis.length) perfis = d.perfis;
       }
     } catch {}
-    cacheMembros = membros;
-    window.waRenderLista();
-  };
 
-  window.waRenderLista = function () {
-    const alvo = document.getElementById("waListaDestinatarios");
-    if (!alvo) return;
-    const turno = document.getElementById("waTurnoFiltro")?.value || "TODOS";
-    const textoBase = (document.getElementById("waMensagemTexto")?.value || gerarTextoModelo()).trim();
-
-    const filtrados = cacheMembros.filter((m) => {
-      if (turno === "TODOS") return true;
-      return ((m.horario || m.turno || "")).includes(turno);
+    const alvos = perfis.filter((p) => {
+      if (turnoAlvo === "TODOS") return true;
+      return (p.turno || p.horario || "").includes(turnoAlvo);
     });
 
-    if (!filtrados.length) {
-      alvo.innerHTML = `
-        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
-          <span class="text-xs text-slate-400">Nenhum atleta carregado para este turno. Podes abrir o WhatsApp com a mensagem pronta para colar no grupo do turno.</span>
-          <a href="https://wa.me/?text=${encodeURIComponent(textoBase)}" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs">
-            Abrir WhatsApp (Mensagem Geral)
-          </a>
-        </div>
-      `;
+    const msgPadrao =
+      (document.getElementById("waMensagemModelo")?.value || "").trim() ||
+      "Lembrete CrossHitBox Tae: a nossa aula do turno {TURNO} começa em breve! Prepara o equipamento e mantém o foco.";
+
+    if (!alvos.length) {
+      abrirNaMesmaSessao("", msgPadrao.replace(/\{NOME\}/gi, "Equipa").replace(/\{TURNO\}/gi, turnoAlvo));
       return;
     }
 
-    alvo.innerHTML = `
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
-        ${filtrados.map((m) => {
-          const nome = (m.nome || m.email || "Atleta").toString();
-          const telFormatado = limparTelefoneCV(m.telefone || m.contacto || m.telemovel || "");
-          const msgPersonalizada = textoBase.replace(/^Olá!?/i, `Olá ${nome}!`);
-          const href = telFormatado
-            ? `https://wa.me/${telFormatado}?text=${encodeURIComponent(msgPersonalizada)}`
-            : `https://wa.me/?text=${encodeURIComponent(msgPersonalizada)}`;
+    const primeiro = alvos[0];
+    abrirNaMesmaSessao(
+      limparTelefoneCV(primeiro.telefone),
+      msgPadrao.replace(/\{NOME\}/gi, primeiro.nome || "Atleta").replace(/\{TURNO\}/gi, primeiro.turno || turnoAlvo)
+    );
+  };
 
-          return `
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-2">
-              <div class="min-w-0">
-                <div class="font-bold text-white truncate">${nome}</div>
-                <div class="text-slate-400 truncate">${m.horario || m.turno || "Turno"} • ${m.telefone || "Sem nº"}</div>
-              </div>
-              <a href="${href}" target="_blank" rel="noopener" class="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold">
-                WhatsApp
-              </a>
-            </div>
-          `;
-        }).join("")}
+  window.renderLembretesWhatsappUI = async function () {
+    const alvo = document.getElementById("conteudoLembretesWA");
+    if (!alvo) return;
+    const turnoFiltro = document.getElementById("waTurnoFiltro")?.value || "TODOS";
+
+    let perfis = lerArray("crosshitbox_perfis_completos_v1");
+    try {
+      const r = await fetch("/api/crosshitbox/perfis-completos").catch(() => null);
+      if (r && r.ok) {
+        const d = await r.json();
+        if (Array.isArray(d.perfis) && d.perfis.length) perfis = d.perfis;
+      }
+    } catch {}
+
+    const lista = perfis.filter((p) => {
+      if (turnoFiltro === "TODOS") return true;
+      return (p.turno || p.horario || "").includes(turnoFiltro);
+    });
+
+    alvo.innerHTML = `
+      <div class="space-y-4 text-xs">
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <label class="text-slate-300 font-semibold">Mensagem de Lembrete (usa {NOME} e {TURNO})</label>
+            <label class="flex items-center gap-2 text-emerald-300 font-semibold cursor-pointer">
+              <input id="waModoAppCheck" type="checkbox" class="accent-emerald-500">
+              <span>Preferir link api.whatsapp.com (abre App/Sessão direta)</span>
+            </label>
+          </div>
+          <textarea id="waMensagemModelo" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white">Olá {NOME}! Lembrete CrossHitBox Tae ({TURNO}): a aula começa em breve. Contamos contigo!</textarea>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="chbEnviarLembreteTurno()" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold">Abrir na Mesma Janela do WhatsApp</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          ${
+            lista.length
+              ? lista.map((p) => `
+                  <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="font-bold text-white truncate">${p.nome || p.email}</div>
+                      <div class="text-slate-400 truncate">${p.turno || "Turno não definido"} • ${p.telefone || "Sem nº"}</div>
+                    </div>
+                    <button type="button" onclick="chbEnviarLembreteAula('${(p.nome || "Atleta").replace(/'/g, "")}','${p.telefone || ""}','${(p.turno || "").replace(/'/g, "")}')" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold shrink-0">Enviar</button>
+                  </div>
+                `).join("")
+              : `<div class="col-span-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-400">Nenhum atleta encontrado para o filtro selecionado.</div>`
+          }
+        </div>
       </div>
     `;
   };
@@ -102,47 +148,32 @@
 
   const container = document.createElement("section");
   container.id = "lembretesWhatsappModulo";
-  container.className = "hidden max-w-6xl mx-auto my-6 bg-slate-900/95 border border-emerald-500/30 rounded-2xl p-5 shadow-xl";
+  container.className = "hidden max-w-6xl mx-auto my-6 bg-slate-900/95 border border-emerald-500/40 rounded-2xl p-5 shadow-xl";
   container.style.display = "none";
   container.innerHTML = `
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div>
-        <h2 class="text-base font-bold text-emerald-400">Lembretes Rápidos via WhatsApp por Turno</h2>
-        <p class="text-xs text-slate-400">Envia avisos de aula, WOD ou mensalidade com a mensagem pronta e link direto para a plataforma.</p>
+        <h2 class="text-base font-bold text-emerald-400">Lembretes de Aula via WhatsApp (Sessão Reutilizada)</h2>
+        <p class="text-xs text-slate-400">Reutiliza sempre a mesma janela do WhatsApp para não multiplicar abas nem exigir novo login a cada envio.</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <select id="waTurnoFiltro" onchange="waAtualizarModeloTexto(); waRenderLista();" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+      <div class="flex items-center gap-2">
+        <select id="waTurnoFiltro" onchange="renderLembretesWhatsappUI()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-semibold">
+          <option value="TODOS">Todos os Turnos</option>
           <option value="05:00">Turno 05:00</option>
           <option value="18:00">Turno 18:00</option>
-          <option value="TODOS">Todos os turnos</option>
         </select>
-        <select id="waTipoModelo" onchange="waAtualizarModeloTexto(); waRenderLista();" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
-          <option value="AULA">Aviso de Aula / Treino</option>
-          <option value="WOD">WOD &amp; Ranking do Dia</option>
-          <option value="MENSALIDADE">Lembrete de Mensalidade</option>
-        </select>
-        <button type="button" onclick="waCarregarMembros()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200">Atualizar Lista</button>
+        <button type="button" onclick="renderLembretesWhatsappUI()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200">Atualizar</button>
       </div>
     </div>
-
-    <div class="space-y-3">
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Mensagem de lembrete (editável)</label>
-        <textarea id="waMensagemTexto" rows="2" oninput="waRenderLista()" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"></textarea>
-      </div>
-      <div id="waListaDestinatarios"></div>
-    </div>
+    <div id="conteudoLembretesWA"></div>
   `;
 
-  const refEl = document.getElementById("evolucaoFisicaModulo") || document.getElementById("wodRankingModulo");
+  const refEl = document.getElementById("radarEvasaoModulo") || document.getElementById("modoComandoModulo") || document.body.firstChild;
   if (refEl && refEl.parentNode) {
     refEl.parentNode.insertBefore(container, refEl);
   } else {
     document.body.appendChild(container);
   }
-
-  document.getElementById("waMensagemTexto").value = gerarTextoModelo();
-  window.waCarregarMembros();
 
   function aplicarVisibilidade() {
     const el = document.getElementById("lembretesWhatsappModulo");
@@ -150,7 +181,7 @@
     if (sessaoAtiva) {
       el.classList.remove("hidden");
       el.style.display = "";
-      window.waRenderLista();
+      window.renderLembretesWhatsappUI();
     } else {
       el.classList.add("hidden");
       el.style.display = "none";
