@@ -490,6 +490,72 @@ app.post("/api/crosshitbox/perfis-completos", async (req, res) => {
   res.status(201).json({ ok: true, perfil: reg });
 });
 
+
+async function carregarVideosPersistentes() {
+  const sb = obterClienteSupabase();
+  let videos = lerJsonLocal("videos_aulas_local.json");
+  if (sb) {
+    try {
+      const r = await sb.from("videos_aulas_crosshitbox").select("*").order("created_at", { ascending: false }).limit(200);
+      if (!r.error && Array.isArray(r.data)) {
+        videos = r.data;
+        escreverJsonLocal("videos_aulas_local.json", videos);
+      }
+    } catch {}
+  }
+  return Array.isArray(videos) ? videos : [];
+}
+
+app.get("/api/crosshitbox/videos-aulas", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const videos = await carregarVideosPersistentes();
+  res.json({ videos });
+});
+
+app.post("/api/crosshitbox/videos-aulas", async (req, res) => {
+  const b = req.body || {};
+  if (!b.titulo || !b.link) return res.status(400).json({ erro: "Titulo e link obrigatorios." });
+  const item = {
+    id: String(b.id || ("VID-" + Date.now())),
+    titulo: String(b.titulo).trim(),
+    link: String(b.link).trim(),
+    turno: String(b.turno || "TODOS").trim(),
+    descricao: String(b.descricao || "").trim(),
+    atualizado_em: new Date().toISOString()
+  };
+
+  let videos = await carregarVideosPersistentes();
+  const idx = videos.findIndex((x) => String(x.id) === item.id);
+  if (idx >= 0) videos[idx] = item;
+  else videos.unshift(item);
+
+  escreverJsonLocal("videos_aulas_local.json", videos);
+  const sb = obterClienteSupabase();
+  if (sb) {
+    try {
+      await sb.from("videos_aulas_crosshitbox").upsert([item], { onConflict: "id" });
+    } catch {}
+  }
+  res.status(201).json({ ok: true, video: item, videos });
+});
+
+app.delete("/api/crosshitbox/videos-aulas/:id", async (req, res) => {
+  const idAlvo = String(req.params.id || "").trim();
+  if (!idAlvo) return res.status(400).json({ erro: "ID obrigatorio." });
+
+  let videos = await carregarVideosPersistentes();
+  videos = videos.filter((x) => String(x.id) !== idAlvo);
+  escreverJsonLocal("videos_aulas_local.json", videos);
+
+  const sb = obterClienteSupabase();
+  if (sb) {
+    try {
+      await sb.from("videos_aulas_crosshitbox").delete().eq("id", idAlvo);
+    } catch {}
+  }
+  res.json({ ok: true, removido: idAlvo, videos });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
