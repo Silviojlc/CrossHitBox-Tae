@@ -556,6 +556,120 @@ app.delete("/api/crosshitbox/videos-aulas/:id", async (req, res) => {
   res.json({ ok: true, removido: idAlvo, videos });
 });
 
+
+async function carregarTurnosPersistentes() {
+  const sb = obterClienteSupabase();
+  let turnos = lerJsonLocal("turnos_crosshitbox_local.json");
+  if (sb) {
+    try {
+      const r = await sb.from("turnos_crosshitbox").select("*").order("created_at", { ascending: false }).limit(100);
+      if (!r.error && Array.isArray(r.data) && r.data.length) {
+        turnos = r.data;
+        escreverJsonLocal("turnos_crosshitbox_local.json", turnos);
+      }
+    } catch {}
+  }
+  return Array.isArray(turnos) ? turnos : [];
+}
+
+async function carregarExcluidosPersistentes() {
+  const sb = obterClienteSupabase();
+  const setExcl = new Set(lerJsonLocal("membros_excluidos_local.json").map((x) => String(x).toLowerCase()));
+  if (sb) {
+    try {
+      const r = await sb.from("membros_excluidos_crosshitbox").select("email").limit(1000);
+      if (!r.error && Array.isArray(r.data)) {
+        r.data.forEach((row) => {
+          if (row && row.email) setExcl.add(String(row.email).toLowerCase());
+        });
+      }
+    } catch {}
+  }
+  const arr = Array.from(setExcl);
+  escreverJsonLocal("membros_excluidos_local.json", arr);
+  return arr;
+}
+
+app.get("/api/crosshitbox/turnos", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const turnos = await carregarTurnosPersistentes();
+  res.json({ turnos });
+});
+
+app.post("/api/crosshitbox/turnos", async (req, res) => {
+  const b = req.body || {};
+  if (!b.nome || !b.horario) return res.status(400).json({ erro: "Nome e horario obrigatorios." });
+  const item = {
+    id: String(b.id || ("TRN-" + Date.now())),
+    nome: String(b.nome).trim(),
+    horario: String(b.horario).trim(),
+    dias: String(b.dias || "Seg a Sex").trim(),
+    vagas: Number(b.vagas || 25),
+    notas: String(b.notas || "").trim(),
+    ativo: b.ativo !== false,
+    atualizado_em: new Date().toISOString()
+  };
+
+  let turnos = await carregarTurnosPersistentes();
+  const idx = turnos.findIndex((t) => String(t.id) === item.id);
+  if (idx >= 0) turnos[idx] = item;
+  else turnos.unshift(item);
+  escreverJsonLocal("turnos_crosshitbox_local.json", turnos);
+
+  const sb = obterClienteSupabase();
+  if (sb) {
+    try {
+      await sb.from("turnos_crosshitbox").upsert([item], { onConflict: "id" });
+    } catch {}
+  }
+  res.status(201).json({ ok: true, turno: item, turnos });
+});
+
+app.delete("/api/crosshitbox/turnos/:id", async (req, res) => {
+  const idAlvo = String(req.params.id || "").trim();
+  if (!idAlvo) return res.status(400).json({ erro: "ID obrigatorio." });
+
+  let turnos = await carregarTurnosPersistentes();
+  turnos = turnos.filter((t) => String(t.id) !== idAlvo);
+  escreverJsonLocal("turnos_crosshitbox_local.json", turnos);
+
+  const sb = obterClienteSupabase();
+  if (sb) {
+    try {
+      await sb.from("turnos_crosshitbox").delete().eq("id", idAlvo);
+    } catch {}
+  }
+  res.json({ ok: true, removido: idAlvo, turnos });
+});
+
+app.get("/api/crosshitbox/membros-excluidos", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const excluidos = await carregarExcluidosPersistentes();
+  res.json({ excluidos });
+});
+
+app.delete("/api/crosshitbox/membros/:email", async (req, res) => {
+  const em = decodeURIComponent(String(req.params.email || "")).trim().toLowerCase();
+  if (!em) return res.status(400).json({ erro: "Email obrigatorio." });
+
+  const exclSet = new Set(await carregarExcluidosPersistentes());
+  exclSet.add(em);
+  const exclArr = Array.from(exclSet);
+  escreverJsonLocal("membros_excluidos_local.json", exclArr);
+
+  const perfLocal = lerJsonLocal("perfis_completos_local.json").filter((x) => (x.email || "").toLowerCase() !== em);
+  escreverJsonLocal("perfis_completos_local.json", perfLocal);
+
+  const sb = obterClienteSupabase();
+  if (sb) {
+    try {
+      await sb.from("membros_excluidos_crosshitbox").upsert([{ email: em, removido_em: new Date().toISOString() }], { onConflict: "email" });
+      await sb.from("membros").delete().eq("email", em);
+    } catch {}
+  }
+  res.json({ ok: true, excluido: em, excluidos: exclArr });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
