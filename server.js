@@ -5,6 +5,41 @@ const { createClient } = require('@supabase/supabase-js');
 const criarRotasCrossHitBox = require('./crosshitbox');
 
 const app = express();
+
+const __chbBaseDir = __dirname;
+function __chbEnsureDir(p) {
+  try { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); } catch {}
+}
+if (typeof lerJsonLocal !== "function") {
+  var lerJsonLocal = function (nome) {
+    try {
+      const dir = path.join(__chbBaseDir, "dados_persistentes_chb");
+      __chbEnsureDir(dir);
+      const fp = path.join(dir, path.basename(String(nome || "dados.json")));
+      if (!fs.existsSync(fp)) return [];
+      const parsed = JSON.parse(fs.readFileSync(fp, "utf8"));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+}
+if (typeof escreverJsonLocal !== "function") {
+  var escreverJsonLocal = function (nome, dados) {
+    try {
+      const dir = path.join(__chbBaseDir, "dados_persistentes_chb");
+      __chbEnsureDir(dir);
+      const fp = path.join(dir, path.basename(String(nome || "dados.json")));
+      fs.writeFileSync(fp, JSON.stringify(Array.isArray(dados) ? dados : []), "utf8");
+    } catch {}
+  };
+}
+if (typeof obterClienteSupabase !== "function") {
+  var obterClienteSupabase = function () {
+    return null;
+  };
+}
+
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "25mb" }));
