@@ -799,6 +799,32 @@ app.delete("/api/crosshitbox/fotos-avaliacao/:id", async (req, res) => {
   res.json({ ok: true, removido: idAlvo, fotos });
 });
 
+
+app.post("/api/crosshitbox/pagamentos/reordenar", async (req, res) => {
+  const lista = Array.isArray(req.body && req.body.pagamentos) ? req.body.pagamentos : [];
+  escreverJsonLocal("pagamentos_crosshitbox_local.json", lista);
+  res.json({ ok: true, pagamentos: lista });
+});
+
+app.delete("/api/crosshitbox/pagamentos/:id", async (req, res) => {
+  const idAlvo = decodeURIComponent(String(req.params.id || "")).trim();
+  if (!idAlvo) return res.status(400).json({ erro: "ID obrigatorio." });
+
+  let atuais = lerJsonLocal("pagamentos_crosshitbox_local.json");
+  if (!Array.isArray(atuais)) atuais = [];
+  atuais = atuais.filter((p) => String(p.id) !== idAlvo);
+  escreverJsonLocal("pagamentos_crosshitbox_local.json", atuais);
+
+  const sb = typeof obterClienteSupabase === "function" ? obterClienteSupabase() : null;
+  if (sb) {
+    try {
+      await sb.from("pagamentos_crosshitbox").delete().eq("id", idAlvo);
+    } catch {}
+  }
+
+  res.json({ ok: true, removido: idAlvo, pagamentos: atuais });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
