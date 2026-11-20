@@ -206,25 +206,76 @@
   }
 
   window.chbEnviarComprovativoBloqueio = async function (ev) {
-    ev.preventDefault();
+    if (ev) ev.preventDefault();
+    const statusEl = document.getElementById("bloqStatusMsg");
     const email = obterEmailAtletaLogado();
     const nif = (document.getElementById("bloqNifInput")?.value || "").trim();
+    const metodo = (document.getElementById("bloqMetodoInput")?.value || "Transferência / Vinti4").trim();
     const file = document.getElementById("bloqCompFile")?.files?.[0];
-    if (!email || !file) return;
 
-    const compBase64 = await lerFicheiroBase64(file);
-    const perfis = lerLista(KEY_PERFIS_COMPLETOS);
-    const idxP = perfis.findIndex((p) => (p.email || "").toLowerCase() === email);
-    if (idxP >= 0 && nif) {
-      perfis[idxP].nif = nif;
-      guardarLista(KEY_PERFIS_COMPLETOS, perfis);
+    if (!file) {
+      if (statusEl) {
+        statusEl.className = "text-rose-400 font-semibold";
+        statusEl.textContent = "Seleciona primeiro a imagem ou PDF do comprovativo antes de enviar.";
+      }
+      return;
     }
 
+    if (statusEl) {
+      statusEl.className = "text-amber-300 font-semibold";
+      statusEl.textContent = "A preparar e enviar comprovativo para o treinador/gerente...";
+    }
+
+    let compBase64 = "";
+    if (file.type && file.type.startsWith("image/")) {
+      compBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = new Image();
+          img.onload = function () {
+            const maxW = 900;
+            let w = img.width || maxW;
+            let h = img.height || maxW;
+            if (w > maxW) {
+              h = Math.round((h * maxW) / w);
+              w = maxW;
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, w, h);
+            try { resolve(canvas.toDataURL("image/jpeg", 0.72)); }
+            catch { resolve(String(e.target.result || "")); }
+          };
+          img.onerror = () => resolve(String(e.target.result || ""));
+          img.src = String(e.target.result || "");
+        };
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(file);
+      });
+    } else {
+      compBase64 = await lerFicheiroBase64(file);
+    }
+
+    if (!compBase64) {
+      if (statusEl) {
+        statusEl.className = "text-rose-400 font-semibold";
+        statusEl.textContent = "Não foi possível ler o ficheiro selecionado. Tenta com outra imagem ou PDF.";
+      }
+      return;
+    }
+
+    const perfis = lerLista(KEY_PERFIS_COMPLETOS);
+    const perfilExistente = perfis.find((p) => (p.email || "").toLowerCase() === email);
+    const nomeAtleta = (perfilExistente && perfilExistente.nome) || (email ? email.split("@")[0] : "Atleta");
+
     const pg = {
-      id: "PG-" + Date.now(),
-      email,
-      nome: email.split("@")[0],
+      id: "PG-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      email: email || "atleta@crosshitbox.cv",
+      nome: nomeAtleta,
       nif,
+      metodo,
       valor: "500$00",
       mes_referencia: new Date().toISOString().slice(0, 7),
       estado: "Aguardando Validação",
@@ -232,6 +283,33 @@
       comprovativo_base64: compBase64,
       data_envio: new Date().toISOString()
     };
+
+    const pgs = lerLista(KEY_PAGAMENTOS);
+    pgs.unshift(pg);
+    guardarLista(KEY_PAGAMENTOS, pgs);
+
+    try {
+      const resp = await fetch("/api/crosshitbox/pagamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pg)
+      });
+      if (resp && resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        if (Array.isArray(data.pagamentos)) guardarLista(KEY_PAGAMENTOS, data.pagamentos);
+        if (statusEl) {
+          statusEl.className = "text-emerald-300 font-semibold";
+          statusEl.textContent = "Comprovativo enviado com sucesso para avaliação do treinador/gerente! Aguarda a confirmação.";
+        }
+        return;
+      }
+    } catch {}
+
+    if (statusEl) {
+      statusEl.className = "text-amber-300 font-semibold";
+      statusEl.textContent = "Comprovativo guardado localmente e em fila de sincronização. Usa também o botão WhatsApp se quiseres notificar já o treinador.";
+    }
+  };
 
     const pgs = lerLista(KEY_PAGAMENTOS);
     pgs.unshift(pg);
@@ -525,6 +603,7 @@
 
                 <div class="flex flex-wrap gap-2">
                   ${p.documento_url ? `<a href="${p.documento_url}" download="BI_${p.nome || em}" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 font-semibold">Descarregar BI/Documento</a>` : `<span class="text-slate-500">Sem BI anexado</span>`}
+                  ${(pagamentos.find((x) => x.email === em && x.comprovativo_base64) || {}).comprovativo_base64 ? `<a href="${(pagamentos.find((x) => x.email === em && x.comprovativo_base64) || {}).comprovativo_base64}" download="Comprovativo_${p.nome || em}.jpg" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-semibold">Ver / Baixar Comprovativo</a>` : `<span class="text-amber-400/80">Sem comprovativo ainda</span>`}
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800">
