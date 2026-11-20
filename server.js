@@ -445,6 +445,51 @@ app.get("/fundo-crosshitbox-tae.jpg", (req, res) => {
   res.status(404).end();
 });
 
+
+app.get("/api/crosshitbox/perfis-completos", async (req, res) => {
+  const sb = obterClienteSupabase();
+  let perfis = lerJsonLocal("perfis_completos_local.json");
+  if (sb) {
+    try {
+      const r = await sb.from("membros").select("*").limit(500);
+      if (!r.error && Array.isArray(r.data) && r.data.length) perfis = r.data;
+    } catch {}
+  }
+  res.json({ perfis });
+});
+
+app.post("/api/crosshitbox/perfis-completos", async (req, res) => {
+  const b = req.body || {};
+  if (!b.email) return res.status(400).json({ erro: "Email obrigatorio." });
+  const email = String(b.email).trim().toLowerCase();
+  const reg = {
+    email,
+    nome: String(b.nome || email.split("@")[0]),
+    telefone: String(b.telefone || ""),
+    nif: String(b.nif || ""),
+    foto_url: String(b.foto_url || ""),
+    documento_url: String(b.documento_url || ""),
+    status_acesso: String(b.status_acesso || "PENDENTE_PAGAMENTO"),
+    validade_ate: String(b.validade_ate || ""),
+    recibo_numero: String(b.recibo_numero || ""),
+    termo_aceite: Boolean(b.termo_aceite),
+    atualizado_em: new Date().toISOString()
+  };
+  const local = lerJsonLocal("perfis_completos_local.json");
+  const idx = local.findIndex((x) => x.email === email);
+  if (idx >= 0) local[idx] = Object.assign(local[idx], reg);
+  else local.unshift(reg);
+  escreverJsonLocal("perfis_completos_local.json", local);
+
+  const sb = obterClienteSupabase();
+  if (sb) {
+    try {
+      await sb.from("membros").upsert([reg], { onConflict: "email" });
+    } catch {}
+  }
+  res.status(201).json({ ok: true, perfil: reg });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
