@@ -4,6 +4,7 @@
 
   const CHAVE_SESSAO_ADMIN = "chb_sessao_admin_autenticada_v1";
   const CHAVE_SESSAO_MEMBRO = "chb_sessao_membro_autenticada_v1";
+  const CHAVE_PERSISTENTE = "chb_sessao_persistente_v1";
 
   function ehAdmin() {
     const p = (window.location.pathname || "").toLowerCase();
@@ -13,9 +14,23 @@
   function estaAutenticado() {
     try {
       if (ehAdmin()) {
-        return sessionStorage.getItem(CHAVE_SESSAO_ADMIN) === "1";
+        if (sessionStorage.getItem(CHAVE_SESSAO_ADMIN) === "1") return true;
+        const p = JSON.parse(localStorage.getItem(CHAVE_PERSISTENTE) || "null");
+        if (p && p.admin === "1") {
+          sessionStorage.setItem(CHAVE_SESSAO_ADMIN, "1");
+          return true;
+        }
+        return false;
+      } else {
+        const m = sessionStorage.getItem(CHAVE_SESSAO_MEMBRO);
+        if (m) return true;
+        const p = JSON.parse(localStorage.getItem(CHAVE_PERSISTENTE) || "null");
+        if (p && p.membro) {
+          sessionStorage.setItem(CHAVE_SESSAO_MEMBRO, p.membro);
+          return true;
+        }
+        return false;
       }
-      return Boolean(sessionStorage.getItem(CHAVE_SESSAO_MEMBRO));
     } catch {
       return false;
     }
@@ -57,15 +72,33 @@
     if (idLimpo.includes("@") && senhaLimpa.length >= 4) {
       return idLimpo;
     }
+    if (idLimpo.length >= 2 && senhaLimpa.length >= 3) {
+      return idLimpo;
+    }
     return null;
   }
 
+  function esconderQualquerCaixaLoginNativa() {
+    // Nunca deixar formulários de login nativos aparecerem no canto esquerdo
+    document.querySelectorAll("form, div, section").forEach((el) => {
+      if (!el || el.id === "chbTelaLoginObrigatoria" || el.id === "chbDashboardPro" || el.id === "chbCentralTreinoSecao") return;
+      if (el.closest && el.closest("#chbTelaLoginObrigatoria")) return;
+      if (el.querySelector && el.querySelector("input[type='password']")) {
+        const temConteudoGrande = el.querySelector("table, #chbCentralTreinoSecao, #chbDashboardPro");
+        if (!temConteudoGrande) {
+          el.style.setProperty("display", "none", "important");
+        }
+      }
+    });
+  }
+
   function revelarConteudoPainel() {
-    // Garante que secções e contentores principais não fiquem presos em hidden / display:none após o login
+    esconderQualquerCaixaLoginNativa();
+
     const seletores = "header, aside, nav, main, section, table, thead, tbody, tr, [id*='painel'], [id*='dashboard'], [id*='admin'], [id*='membro'], [id*='conteudo'], [id*='secao']";
     document.querySelectorAll(seletores).forEach((el) => {
       if (!el || el.id === "chbTelaLoginObrigatoria") return;
-      if (el.querySelector && el.querySelector("input[type='password']")) {
+      if (el.querySelector && el.querySelector("input[type='password']") && !el.querySelector("table")) {
         el.style.setProperty("display", "none", "important");
         return;
       }
@@ -75,14 +108,6 @@
       }
       if (window.getComputedStyle(el).display === "none") {
         el.style.setProperty("display", el.tagName === "TABLE" ? "table" : "block", "important");
-      }
-    });
-
-    // Esconde qualquer formulário residual que contenha input[type='password'] fora da nossa tela de login
-    document.querySelectorAll("form").forEach((frm) => {
-      if (frm.closest && frm.closest("#chbTelaLoginObrigatoria")) return;
-      if (frm.querySelector("input[type='password']")) {
-        frm.style.setProperty("display", "none", "important");
       }
     });
   }
@@ -99,19 +124,22 @@
     if (ehAdmin()) {
       const creds = lerCredenciaisAdmin();
       if (uVal === creds.user && pVal === creds.pass) {
-        try { sessionStorage.setItem(CHAVE_SESSAO_ADMIN, "1"); } catch {}
+        try {
+          sessionStorage.setItem(CHAVE_SESSAO_ADMIN, "1");
+          localStorage.setItem(CHAVE_PERSISTENTE, JSON.stringify({ admin: "1", atualizadoEm: Date.now() }));
+        } catch {}
         if (erroEl) erroEl.textContent = "";
         aplicarEstadoLoginLogoff();
-        if (typeof window.chbAtualizarDashboardPro === "function") {
-          window.chbAtualizarDashboardPro();
-        }
       } else if (erroEl) {
         erroEl.textContent = "Utilizador ou senha inválidos.";
       }
     } else {
       const emailValidado = validarMembro(uVal, pVal);
       if (emailValidado) {
-        try { sessionStorage.setItem(CHAVE_SESSAO_MEMBRO, emailValidado); } catch {}
+        try {
+          sessionStorage.setItem(CHAVE_SESSAO_MEMBRO, emailValidado);
+          localStorage.setItem(CHAVE_PERSISTENTE, JSON.stringify({ membro: emailValidado, atualizadoEm: Date.now() }));
+        } catch {}
         if (erroEl) erroEl.textContent = "";
         aplicarEstadoLoginLogoff();
       } else if (erroEl) {
@@ -124,6 +152,7 @@
     try {
       sessionStorage.removeItem(CHAVE_SESSAO_ADMIN);
       sessionStorage.removeItem(CHAVE_SESSAO_MEMBRO);
+      localStorage.removeItem(CHAVE_PERSISTENTE);
       localStorage.removeItem("crosshitbox_sessao_ativa");
     } catch {}
     aplicarEstadoLoginLogoff();
