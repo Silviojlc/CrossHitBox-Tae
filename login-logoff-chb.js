@@ -60,6 +60,33 @@
     return null;
   }
 
+  function revelarConteudoPainel() {
+    // Garante que secções e contentores principais não fiquem presos em hidden / display:none após o login
+    const seletores = "header, aside, nav, main, section, table, thead, tbody, tr, [id*='painel'], [id*='dashboard'], [id*='admin'], [id*='membro'], [id*='conteudo'], [id*='secao']";
+    document.querySelectorAll(seletores).forEach((el) => {
+      if (!el || el.id === "chbTelaLoginObrigatoria") return;
+      if (el.querySelector && el.querySelector("input[type='password']")) {
+        el.style.setProperty("display", "none", "important");
+        return;
+      }
+      el.classList.remove("hidden");
+      if (el.style.display === "none") {
+        el.style.removeProperty("display");
+      }
+      if (window.getComputedStyle(el).display === "none") {
+        el.style.setProperty("display", el.tagName === "TABLE" ? "table" : "block", "important");
+      }
+    });
+
+    // Esconde qualquer formulário residual que contenha input[type='password'] fora da nossa tela de login
+    document.querySelectorAll("form").forEach((frm) => {
+      if (frm.closest && frm.closest("#chbTelaLoginObrigatoria")) return;
+      if (frm.querySelector("input[type='password']")) {
+        frm.style.setProperty("display", "none", "important");
+      }
+    });
+  }
+
   window.chbSubmeterLogin = function (ev) {
     if (ev) ev.preventDefault();
     const userInp = document.getElementById("chbLoginUser");
@@ -102,39 +129,20 @@
     aplicarEstadoLoginLogoff();
   };
 
-  function ocultarFormulariosLoginNativos() {
-    // Evita formulários duplicados de login da página nativa quando a tela única está ativa
-    const forms = Array.from(document.querySelectorAll("form, div, section"));
-    forms.forEach((el) => {
-      if (!el || el.id === "chbTelaLoginObrigatoria" || el.id === "chbDashboardPro") return;
-      if (el.contains(document.getElementById("chbTelaLoginObrigatoria"))) return;
-      const txt = (el.innerText || "").toUpperCase();
-      const temPass = Boolean(el.querySelector && el.querySelector("input[type='password']"));
-      const ehCardLoginNativo =
-        temPass &&
-        (txt.includes("ACESSO EXCLUSIVO AO ADMINISTRADOR") ||
-          txt.includes("ENTRAR NO PAINEL") ||
-          txt.includes("ADMINISTRAÇÃO — CROSSHITBOX TAE"));
-      if (ehCardLoginNativo) {
-        el.style.setProperty("display", "none", "important");
-      }
-    });
-  }
-
   function garantirTelaLogin() {
     let box = document.getElementById("chbTelaLoginObrigatoria");
     if (!box) {
       box = document.createElement("div");
       box.id = "chbTelaLoginObrigatoria";
       box.style.cssText =
-        "min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center;padding:20px;background:#020617;color:#f8fafc;position:fixed;inset:0;z-index:95;";
+        "position:fixed;inset:0;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#020617;color:#f8fafc;z-index:9999;";
       const admin = ehAdmin();
       box.innerHTML = `
-        <form onsubmit="chbSubmeterLogin(event)" style="width:100%;max-width:400px;background:#0f172a;border:1px solid rgba(245,158,11,.45);border-radius:18px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.65);font-family:system-ui,-apple-system,sans-serif;">
+        <form onsubmit="chbSubmeterLogin(event)" style="width:100%;max-width:410px;background:#0f172a;border:1px solid rgba(245,158,11,.45);border-radius:18px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.7);font-family:system-ui,-apple-system,sans-serif;">
           <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:6px;">
             CrossHitBox Tae • Acesso Restrito
           </div>
-          <h1 style="font-size:20px;font-weight:900;margin:0 0 6px 0;color:#ffffff;">
+          <h1 style="font-size:21px;font-weight:900;margin:0 0 6px 0;color:#ffffff;">
             ${admin ? "Login do Administrador" : "Login da Área do Atleta"}
           </h1>
           <p style="font-size:12px;color:#94a3b8;margin:0 0 18px 0;">
@@ -177,7 +185,7 @@
     t.onclick = window.chbFazerLogoff;
     t.textContent = "Logoff";
     t.style.cssText =
-      "position:fixed;top:14px;right:16px;z-index:70;padding:8px 14px;border-radius:10px;border:none;background:#e11d48;color:#ffffff;font-weight:900;font-size:12px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4);";
+      "position:fixed;top:14px;right:16px;z-index:950;padding:8px 14px;border-radius:10px;border:none;background:#e11d48;color:#ffffff;font-weight:900;font-size:12px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.45);";
     document.body.appendChild(t);
   }
 
@@ -190,25 +198,17 @@
     if (!document.body) return;
     const autenticado = estaAutenticado();
     const telaLogin = garantirTelaLogin();
-    const filhos = Array.from(document.body.children);
 
     if (!autenticado) {
-      telaLogin.style.display = "flex";
+      telaLogin.style.setProperty("display", "flex", "important");
       removerBotaoLogoff();
-      filhos.forEach((el) => {
-        if (el.id !== "chbTelaLoginObrigatoria" && el.tagName !== "SCRIPT" && el.tagName !== "STYLE") {
-          el.style.setProperty("display", "none", "important");
-        }
-      });
     } else {
-      telaLogin.style.display = "none";
-      filhos.forEach((el) => {
-        if (el.id !== "chbTelaLoginObrigatoria" && el.tagName !== "SCRIPT" && el.tagName !== "STYLE") {
-          el.style.removeProperty("display");
-        }
-      });
-      ocultarFormulariosLoginNativos();
+      telaLogin.style.setProperty("display", "none", "important");
+      revelarConteudoPainel();
       garantirBotaoLogoff();
+      if (typeof window.chbAtualizarDashboardPro === "function") {
+        setTimeout(() => window.chbAtualizarDashboardPro(), 120);
+      }
     }
   }
 
@@ -217,10 +217,10 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       setTimeout(aplicarEstadoLoginLogoff, 100);
-      setTimeout(aplicarEstadoLoginLogoff, 500);
+      setTimeout(aplicarEstadoLoginLogoff, 600);
     });
   } else {
     setTimeout(aplicarEstadoLoginLogoff, 100);
-    setTimeout(aplicarEstadoLoginLogoff, 500);
+    setTimeout(aplicarEstadoLoginLogoff, 600);
   }
 })();
