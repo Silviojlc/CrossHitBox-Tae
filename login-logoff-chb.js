@@ -54,7 +54,6 @@
       }
     } catch {}
 
-    // Se ainda não houver perfil local carregado mas o utilizador preencheu e-mail válido e senha >= 4 chars
     if (idLimpo.includes("@") && senhaLimpa.length >= 4) {
       return idLimpo;
     }
@@ -76,8 +75,11 @@
         try { sessionStorage.setItem(CHAVE_SESSAO_ADMIN, "1"); } catch {}
         if (erroEl) erroEl.textContent = "";
         aplicarEstadoLoginLogoff();
+        if (typeof window.chbAtualizarDashboardPro === "function") {
+          window.chbAtualizarDashboardPro();
+        }
       } else if (erroEl) {
-        erroEl.textContent = "Utilizador ou senha de administrador inválidos.";
+        erroEl.textContent = "Utilizador ou senha inválidos.";
       }
     } else {
       const emailValidado = validarMembro(uVal, pVal);
@@ -86,7 +88,7 @@
         if (erroEl) erroEl.textContent = "";
         aplicarEstadoLoginLogoff();
       } else if (erroEl) {
-        erroEl.textContent = "Credenciais de atleta inválidas. Verifica o teu e-mail/nome e senha.";
+        erroEl.textContent = "Credenciais inválidas. Verifica o teu e-mail/nome e senha.";
       }
     }
   };
@@ -95,31 +97,40 @@
     try {
       sessionStorage.removeItem(CHAVE_SESSAO_ADMIN);
       sessionStorage.removeItem(CHAVE_SESSAO_MEMBRO);
-      sessionStorage.removeItem("chb_logoff_manual_v1");
       localStorage.removeItem("crosshitbox_sessao_ativa");
     } catch {}
-
-    const botoesAntigos = Array.from(document.querySelectorAll("button, a")).filter((el) => {
-      if (el.id === "chbBtnLogoffMenu" || el.id === "chbBtnLogoffTopo") return false;
-      const t = (el.textContent || "").trim().toLowerCase();
-      return t === "sair" || t === "terminar sessão" || t === "terminar sessao" || t === "logout" || t === "logoff";
-    });
-    botoesAntigos.forEach((b) => {
-      try { b.click(); } catch {}
-    });
-
     aplicarEstadoLoginLogoff();
   };
+
+  function ocultarFormulariosLoginNativos() {
+    // Evita formulários duplicados de login da página nativa quando a tela única está ativa
+    const forms = Array.from(document.querySelectorAll("form, div, section"));
+    forms.forEach((el) => {
+      if (!el || el.id === "chbTelaLoginObrigatoria" || el.id === "chbDashboardPro") return;
+      if (el.contains(document.getElementById("chbTelaLoginObrigatoria"))) return;
+      const txt = (el.innerText || "").toUpperCase();
+      const temPass = Boolean(el.querySelector && el.querySelector("input[type='password']"));
+      const ehCardLoginNativo =
+        temPass &&
+        (txt.includes("ACESSO EXCLUSIVO AO ADMINISTRADOR") ||
+          txt.includes("ENTRAR NO PAINEL") ||
+          txt.includes("ADMINISTRAÇÃO — CROSSHITBOX TAE"));
+      if (ehCardLoginNativo) {
+        el.style.setProperty("display", "none", "important");
+      }
+    });
+  }
 
   function garantirTelaLogin() {
     let box = document.getElementById("chbTelaLoginObrigatoria");
     if (!box) {
       box = document.createElement("div");
       box.id = "chbTelaLoginObrigatoria";
-      box.style.cssText = "min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:#020617;color:#f8fafc;position:relative;z-index:90;";
+      box.style.cssText =
+        "min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center;padding:20px;background:#020617;color:#f8fafc;position:fixed;inset:0;z-index:95;";
       const admin = ehAdmin();
       box.innerHTML = `
-        <form onsubmit="chbSubmeterLogin(event)" style="width:100%;max-width:410px;background:#0f172a;border:1px solid rgba(245,158,11,.45);border-radius:18px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.6);font-family:system-ui,-apple-system,sans-serif;">
+        <form onsubmit="chbSubmeterLogin(event)" style="width:100%;max-width:400px;background:#0f172a;border:1px solid rgba(245,158,11,.45);border-radius:18px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.65);font-family:system-ui,-apple-system,sans-serif;">
           <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:6px;">
             CrossHitBox Tae • Acesso Restrito
           </div>
@@ -127,65 +138,52 @@
             ${admin ? "Login do Administrador" : "Login da Área do Atleta"}
           </h1>
           <p style="font-size:12px;color:#94a3b8;margin:0 0 18px 0;">
-            ${admin ? "Introduz as tuas credenciais de administrador para aceder ao painel." : "Introduz o teu e-mail ou nome e senha de atleta para entrar."}
+            ${admin ? "Introduz as tuas credenciais para abrir o painel." : "Introduz os teus dados de acesso para entrar."}
           </p>
 
           <div style="margin-bottom:12px;">
             <label style="display:block;font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:5px;">
-              ${admin ? "Utilizador" : "E-mail ou Nome do Atleta"}
+              ${admin ? "Utilizador" : "E-mail ou Nome"}
             </label>
-            <input id="chbLoginUser" type="text" required autocomplete="username" placeholder="${admin ? "Utilizador admin" : "ex: atleta@email.com"}"
+            <input id="chbLoginUser" type="text" required autocomplete="username"
               style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#020617;color:#ffffff;font-size:13px;">
           </div>
 
           <div style="margin-bottom:14px;">
             <label style="display:block;font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:5px;">
-              Senha / Credencial
+              Senha
             </label>
-            <input id="chbLoginPass" type="password" required autocomplete="current-password" placeholder="••••••"
+            <input id="chbLoginPass" type="password" required autocomplete="current-password"
               style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#020617;color:#ffffff;font-size:13px;">
           </div>
 
           <div id="chbLoginErro" style="font-size:12px;font-weight:700;color:#fb7185;min-height:18px;margin-bottom:10px;"></div>
 
           <button type="submit" style="width:100%;padding:11px 14px;border-radius:12px;border:none;background:#f59e0b;color:#020617;font-weight:900;font-size:13px;cursor:pointer;">
-            Entrar (Login)
+            Entrar
           </button>
         </form>
       `;
-      document.body.insertBefore(box, document.body.firstChild);
+      document.body.appendChild(box);
     }
     return box;
   }
 
-  function garantirBotoesLogoffVisiveis() {
-    const sidebar = document.getElementById("chbMenuLateralFirme") || document.querySelector("aside");
-    if (sidebar && !document.getElementById("chbBtnLogoffMenu")) {
-      const b = document.createElement("button");
-      b.id = "chbBtnLogoffMenu";
-      b.type = "button";
-      b.onclick = window.chbFazerLogoff;
-      b.textContent = "Logoff / Terminar Sessão";
-      b.style.cssText = "width:100%;padding:10px 12px;border-radius:12px;border:none;background:#e11d48;color:#ffffff;font-weight:900;font-size:12px;cursor:pointer;margin-top:8px;";
-      sidebar.appendChild(b);
-    }
-
-    if (!document.getElementById("chbBtnLogoffTopo")) {
-      const t = document.createElement("button");
-      t.id = "chbBtnLogoffTopo";
-      t.type = "button";
-      t.onclick = window.chbFazerLogoff;
-      t.textContent = "Logoff";
-      t.style.cssText = "position:fixed;top:14px;right:16px;z-index:70;padding:8px 14px;border-radius:10px;border:none;background:#e11d48;color:#ffffff;font-weight:900;font-size:12px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4);";
-      document.body.appendChild(t);
-    }
+  function garantirBotaoLogoff() {
+    if (document.getElementById("chbBtnLogoffTopo")) return;
+    const t = document.createElement("button");
+    t.id = "chbBtnLogoffTopo";
+    t.type = "button";
+    t.onclick = window.chbFazerLogoff;
+    t.textContent = "Logoff";
+    t.style.cssText =
+      "position:fixed;top:14px;right:16px;z-index:70;padding:8px 14px;border-radius:10px;border:none;background:#e11d48;color:#ffffff;font-weight:900;font-size:12px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4);";
+    document.body.appendChild(t);
   }
 
-  function removerBotoesLogoffVisiveis() {
-    ["chbBtnLogoffMenu", "chbBtnLogoffTopo"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.remove();
-    });
+  function removerBotaoLogoff() {
+    const t = document.getElementById("chbBtnLogoffTopo");
+    if (t) t.remove();
   }
 
   function aplicarEstadoLoginLogoff() {
@@ -196,10 +194,9 @@
 
     if (!autenticado) {
       telaLogin.style.display = "flex";
-      removerBotoesLogoffVisiveis();
+      removerBotaoLogoff();
       filhos.forEach((el) => {
         if (el.id !== "chbTelaLoginObrigatoria" && el.tagName !== "SCRIPT" && el.tagName !== "STYLE") {
-          el.dataset.chbPrevDisplay = el.style.display || "";
           el.style.setProperty("display", "none", "important");
         }
       });
@@ -208,18 +205,22 @@
       filhos.forEach((el) => {
         if (el.id !== "chbTelaLoginObrigatoria" && el.tagName !== "SCRIPT" && el.tagName !== "STYLE") {
           el.style.removeProperty("display");
-          if (el.dataset.chbPrevDisplay) {
-            el.style.display = el.dataset.chbPrevDisplay;
-          }
         }
       });
-      garantirBotoesLogoffVisiveis();
+      ocultarFormulariosLoginNativos();
+      garantirBotaoLogoff();
     }
   }
 
+  window.chbEstadoAutenticado = estaAutenticado;
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => setTimeout(aplicarEstadoLoginLogoff, 120));
+    document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(aplicarEstadoLoginLogoff, 100);
+      setTimeout(aplicarEstadoLoginLogoff, 500);
+    });
   } else {
-    setTimeout(aplicarEstadoLoginLogoff, 120);
+    setTimeout(aplicarEstadoLoginLogoff, 100);
+    setTimeout(aplicarEstadoLoginLogoff, 500);
   }
 })();

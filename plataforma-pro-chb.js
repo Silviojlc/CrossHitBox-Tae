@@ -211,6 +211,7 @@
     if (!document.body || document.getElementById("chbDashboardPro")) return;
     const isAdmin = (window.location.pathname || "").toLowerCase().includes("admin");
     if (!isAdmin) return;
+    if (typeof window.chbEstadoAutenticado === "function" && !window.chbEstadoAutenticado()) return;
 
     // Garante que secções não fiquem ocultas em massa por filtros antigos
     document.querySelectorAll("section").forEach((sec) => {
