@@ -415,11 +415,14 @@
     if (!embed) {
       const buscaYt = `https://www.youtube.com/results?search_query=${encodeURIComponent("CrossHitBox Tae " + st.videoAbertoTitulo)}`;
       conteudoPlayer = `
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center space-y-2">
-          <div class="text-slate-300 font-bold">Ainda não foi associado um vídeo específico pelo treinador para este treino.</div>
-          <a href="${buscaYt}" target="_blank" rel="noopener" class="inline-block px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
-            Abrir Demonstração no YouTube
-          </a>
+        <div class="rounded-xl overflow-hidden border border-slate-800 bg-black space-y-2 p-2">
+          <video src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" controls playsinline class="w-full max-h-[65vh] rounded-lg bg-black"></video>
+          <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-300">
+            <span>Reprodução integrada no programa • Usa Full Ecrã para expandir</span>
+            <a href="${buscaYt}" target="_blank" rel="noopener" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
+              Ver Mais no YouTube
+            </a>
+          </div>
         </div>
       `;
     } else if (embed.tipo === "iframe") {

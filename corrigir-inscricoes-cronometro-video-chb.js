@@ -9,8 +9,6 @@
     "crosshitbox_perfis_completos_v1"
   ];
 
-  const VIDEO_DEMO_MP4 = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
-
   function ehAdmin() {
     return (window.location.pathname || "").toLowerCase().includes("admin");
   }
@@ -130,7 +128,6 @@
   let hiitRestante = 40;
   let hiitAtivo = false;
   let hiitRound = 1;
-  let ultimoSegundoMs = 0;
 
   function obterSecaoHiit() {
     return Array.from(document.querySelectorAll("section, div")).find((el) => {
@@ -150,7 +147,7 @@
     return 40;
   }
 
-  function atualizarContadorHiitVisual() {
+  function pintarRelogioHiit() {
     const sec = obterSecaoHiit();
     if (!sec) return;
     const mm = String(Math.floor(hiitRestante / 60)).padStart(2, "0");
@@ -158,56 +155,46 @@
     const textoTempo = `${mm}:${ss}`;
 
     sec.querySelectorAll("div, span, p, strong").forEach((el) => {
-      if (el.id === "chbHiitRelogioTexto") return;
       if (el.children.length === 0 && /^\d{1,2}:\d{2}$/.test((el.textContent || "").trim())) {
         el.textContent = textoTempo;
       }
     });
 
-    const relEl = document.getElementById("chbHiitRelogioTexto");
-    const estEl = document.getElementById("chbHiitEstadoLabel");
-    if (relEl) relEl.textContent = textoTempo;
-    if (estEl) {
-      estEl.textContent = `${hiitAtivo ? "A CONTAR" : "PAUSADO"} • Round ${hiitRound}`;
-      estEl.style.color = hiitAtivo ? "#34d399" : "#fbbf24";
-    }
+    sec.querySelectorAll("div, span, p").forEach((el) => {
+      if (el.children.length === 0 && /round\s+\d+/i.test(el.textContent || "")) {
+        el.textContent = (el.textContent || "").replace(/round\s+\d+/i, `Round ${hiitRound}`);
+      }
+    });
   }
 
-  window.chbHiitIniciarReal = function () {
+  function iniciarHiit() {
     hiitAtivo = true;
     if (hiitRestante <= 0) {
       hiitRestante = lerSegundosTreinoInput();
     }
-    ultimoSegundoMs = Date.now();
     if (hiitInterval) clearInterval(hiitInterval);
-    atualizarContadorHiitVisual();
-
+    pintarRelogioHiit();
     hiitInterval = setInterval(() => {
       if (!hiitAtivo) return;
-      const agora = Date.now();
-      if (agora - ultimoSegundoMs >= 1000) {
-        ultimoSegundoMs = agora;
-        if (hiitRestante > 1) {
-          hiitRestante -= 1;
-        } else {
-          hiitRound += 1;
-          hiitRestante = lerSegundosTreinoInput();
-        }
-        atualizarContadorHiitVisual();
+      if (hiitRestante > 1) {
+        hiitRestante -= 1;
+      } else {
+        hiitRound += 1;
+        hiitRestante = lerSegundosTreinoInput();
       }
-    }, 200);
-  };
+      pintarRelogioHiit();
+    }, 1000);
+  }
 
-  window.chbHiitPausarReal = function () {
+  function pausarHiit() {
     hiitAtivo = false;
     if (hiitInterval) {
       clearInterval(hiitInterval);
       hiitInterval = null;
     }
-    atualizarContadorHiitVisual();
-  };
+  }
 
-  window.chbHiitZerarReal = function () {
+  function zerarHiit() {
     hiitAtivo = false;
     if (hiitInterval) {
       clearInterval(hiitInterval);
@@ -215,10 +202,10 @@
     }
     hiitRound = 1;
     hiitRestante = lerSegundosTreinoInput();
-    atualizarContadorHiitVisual();
-  };
+    pintarRelogioHiit();
+  }
 
-  window.chbHiitFullEcranReal = function () {
+  function fullEcranHiit() {
     const sec = obterSecaoHiit();
     if (!sec) return;
     if (!document.fullscreenElement && typeof sec.requestFullscreen === "function") {
@@ -226,7 +213,7 @@
     } else if (document.fullscreenElement && typeof document.exitFullscreen === "function") {
       document.exitFullscreen().catch(() => {});
     }
-  };
+  }
 
   document.addEventListener(
     "click",
@@ -236,48 +223,17 @@
       const sec = obterSecaoHiit();
       if (!sec || !sec.contains(btn)) return;
       const label = (btn.textContent || "").trim().toLowerCase();
-      if (label === "iniciar") {
-        window.chbHiitIniciarReal();
-      } else if (label === "pausar") {
-        window.chbHiitPausarReal();
-      } else if (label === "zerar") {
-        window.chbHiitZerarReal();
-      } else if (label.includes("full")) {
-        window.chbHiitFullEcranReal();
-      }
+      if (label === "iniciar") iniciarHiit();
+      else if (label === "pausar") pausarHiit();
+      else if (label === "zerar") zerarHiit();
+      else if (label.includes("full")) fullEcranHiit();
     },
     true
   );
 
-  function garantirPlayerEmbutidoComVideo() {
-    const playerBox = document.getElementById("chbPlayerVideoTreinoBox");
-    if (!playerBox || document.getElementById("chbVideoPlayerDiretoApp")) return;
-
-    const avisoSemVideo = Array.from(playerBox.querySelectorAll("div, p")).find((el) =>
-      (el.textContent || "").toLowerCase().includes("ainda não foi associado um vídeo específico")
-    );
-    if (!avisoSemVideo) return;
-
-    const stage = document.getElementById("chbVideoStageFull") || playerBox;
-    const wrap = document.createElement("div");
-    wrap.id = "chbVideoPlayerDiretoApp";
-    wrap.className = "rounded-xl overflow-hidden border border-slate-800 bg-black space-y-2 p-2";
-    wrap.innerHTML = `
-      <video src="${VIDEO_DEMO_MP4}" controls playsinline class="w-full max-h-[65vh] rounded-lg bg-black"></video>
-      <div class="flex items-center justify-between text-[11px] text-slate-300 px-1">
-        <span>Reprodução integrada no programa • Seleciona Full Ecrã para expandir</span>
-        <button type="button" onclick="window.chbAlternarFullEcranVideo && window.chbAlternarFullEcranVideo()" class="px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-black">
-          Full Ecrã
-        </button>
-      </div>
-    `;
-    stage.appendChild(wrap);
-  }
-
   function executarCorrecoes() {
     sincronizarInscricoesParaAdmin();
-    atualizarContadorHiitVisual();
-    garantirPlayerEmbutidoComVideo();
+    pintarRelogioHiit();
   }
 
   if (document.readyState === "loading") {
@@ -285,5 +241,4 @@
   } else {
     setTimeout(executarCorrecoes, 450);
   }
-  setInterval(garantirPlayerEmbutidoComVideo, 1500);
 })();
