@@ -124,6 +124,7 @@
     }
   };
 
+  // CRONÓMETRO HIIT / TABATA COM CONTAGEM REAL VISÍVEL + FULL ECRÃ
   let hiitInterval = null;
   let hiitRestante = 40;
   let hiitAtivo = false;
@@ -230,6 +231,38 @@
     },
     true
   );
+
+  // PLAYER EMBUTIDO FUNCIONAL COM CONTAGEM E FULL ECRÃ
+  let aulaEmbutidaInterval = null;
+  let aulaEmbutidaSeg = 0;
+  let aulaEmbutidaRodando = false;
+
+  window.chbTogglePlayerEmbutido = function () {
+    const relEl = document.getElementById("chbRelogioVideoEmbutido");
+    if (aulaEmbutidaRodando) {
+      aulaEmbutidaRodando = false;
+      if (aulaEmbutidaInterval) {
+        clearInterval(aulaEmbutidaInterval);
+        aulaEmbutidaInterval = null;
+      }
+    } else {
+      aulaEmbutidaRodando = true;
+      if (aulaEmbutidaInterval) clearInterval(aulaEmbutidaInterval);
+      aulaEmbutidaInterval = setInterval(() => {
+        if (!aulaEmbutidaRodando) return;
+        aulaEmbutidaSeg += 1;
+        const m = String(Math.floor(aulaEmbutidaSeg / 60)).padStart(2, "0");
+        const s = String(aulaEmbutidaSeg % 60).padStart(2, "0");
+        const el = document.getElementById("chbRelogioVideoEmbutido");
+        if (el) el.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+    if (relEl && !aulaEmbutidaRodando) {
+      const m = String(Math.floor(aulaEmbutidaSeg / 60)).padStart(2, "0");
+      const s = String(aulaEmbutidaSeg % 60).padStart(2, "0");
+      relEl.textContent = `${m}:${s}`;
+    }
+  };
 
   function executarCorrecoes() {
     sincronizarInscricoesParaAdmin();

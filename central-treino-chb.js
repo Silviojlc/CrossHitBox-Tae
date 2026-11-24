@@ -416,7 +416,19 @@
       const buscaYt = `https://www.youtube.com/results?search_query=${encodeURIComponent("CrossHitBox Tae " + st.videoAbertoTitulo)}`;
       conteudoPlayer = `
         <div class="rounded-xl overflow-hidden border border-slate-800 bg-black space-y-2 p-2">
-          <video src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" controls playsinline class="w-full max-h-[65vh] rounded-lg bg-black"></video>
+          <div id="chbPlayerAnimadoLocal" class="w-full h-[340px] rounded-lg bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/40 border border-slate-800 flex flex-col items-center justify-center p-6 text-center space-y-3">
+  <div class="text-xs font-extrabold uppercase tracking-wider text-amber-400">Player de Treino Embutido • CrossHitBox Tae</div>
+  <div id="chbTituloVideoEmbutido" class="text-lg font-black text-white">Sessão Prática em Execução</div>
+  <div id="chbRelogioVideoEmbutido" class="text-4xl font-mono font-black text-emerald-400">00:00</div>
+  <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+    <button type="button" onclick="window.chbTogglePlayerEmbutido && window.chbTogglePlayerEmbutido()" id="chbBtnPlayEmbutido" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs">
+      Iniciar / Pausar Aula
+    </button>
+    <button type="button" onclick="window.chbAlternarFullEcranVideo && window.chbAlternarFullEcranVideo()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs">
+      Full Ecrã
+    </button>
+  </div>
+</div>
           <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-300">
             <span>Reprodução integrada no programa • Usa Full Ecrã para expandir</span>
             <a href="${buscaYt}" target="_blank" rel="noopener" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
