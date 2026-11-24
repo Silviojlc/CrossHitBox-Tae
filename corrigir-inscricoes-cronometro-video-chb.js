@@ -9,17 +9,7 @@
     "crosshitbox_perfis_completos_v1"
   ];
 
-  // URLs de pesquisa/abertura garantidas (evitam "Vídeo indisponível" no iframe)
-  const LINKS_TREINO_SEGUROS = {
-    "fit-hiit-20": "https://www.youtube.com/results?search_query=HIIT+Cardio+em+Casa+20+min+sem+equipamento",
-    "fit-tae-box-30": "https://www.youtube.com/results?search_query=Cardio+Boxe+Tae+Bo+30+min",
-    "fit-queima-15": "https://www.youtube.com/results?search_query=Queima+Rapida+Core+15+min+HIIT",
-    "fit-baixo-impacto-25": "https://www.youtube.com/results?search_query=Cardio+Baixo+Impacto+25+min",
-    "ntc-base-tae": "https://www.youtube.com/results?search_query=Nike+Training+Club+Cardio+Condicionamento",
-    "ntc-forca-potencia": "https://www.youtube.com/results?search_query=Nike+Training+Club+Forca+Potencia",
-    "ntc-mobilidade-core": "https://www.youtube.com/results?search_query=Mobilidade+Core+Alongamento+20+min",
-    "run-tecnica-aquecimento": "https://www.youtube.com/results?search_query=Aquecimento+Tecnica+Corrida+Caminhada"
-  };
+  const VIDEO_DEMO_MP4 = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
 
   function ehAdmin() {
     return (window.location.pathname || "").toLowerCase().includes("admin");
@@ -35,7 +25,6 @@
     }
   }
 
-  // 1. SINCRONIZAR NOVOS INSCRITOS PARA O ADMIN APROVAR E LIBERAR
   function sincronizarInscricoesParaAdmin() {
     const excl = lerExcluidos();
     const mapa = new Map();
@@ -137,58 +126,17 @@
     }
   };
 
-  // 2. CRONÓMETRO HIIT / TABATA COM CONTAGEM CONTÍNUA GARANTIDA + FULL ECRÃ
   let hiitInterval = null;
   let hiitRestante = 40;
   let hiitAtivo = false;
   let hiitRound = 1;
-  let ultimoTickMs = 0;
+  let ultimoSegundoMs = 0;
 
   function obterSecaoHiit() {
     return Array.from(document.querySelectorAll("section, div")).find((el) => {
       const t = el.innerText || "";
       return t.includes("Cronómetro HIIT / Tabata") && t.includes("Round");
     });
-  }
-
-  function garantirVisorHiitVivo() {
-    const sec = obterSecaoHiit();
-    if (!sec) return null;
-    let visor = document.getElementById("chbVisorHiitAtivoReal");
-    if (!visor) {
-      visor = document.createElement("div");
-      visor.id = "chbVisorHiitAtivoReal";
-      visor.style.cssText =
-        "margin-top:10px;padding:10px 14px;border-radius:12px;background:#020617;border:1px solid rgba(16,185,129,.45);display:flex;align-items:center;justify-content:space-between;color:#f8fafc;font-family:monospace;";
-      visor.innerHTML = `
-        <span id="chbHiitEstadoLabel" style="font-size:12px;font-weight:800;color:#34d399;">PRONTO • Round 1</span>
-        <span id="chbHiitRelogioTexto" style="font-size:24px;font-weight:900;color:#ffffff;">00:40</span>
-      `;
-      const botoesLinha = Array.from(sec.querySelectorAll("button")).find((b) =>
-        (b.textContent || "").trim().toLowerCase() === "iniciar"
-      );
-      if (botoesLinha && botoesLinha.parentElement && botoesLinha.parentElement.parentElement) {
-        botoesLinha.parentElement.parentElement.appendChild(visor);
-      } else {
-        sec.appendChild(visor);
-      }
-    }
-    return visor;
-  }
-
-  function atualizarContadorHiitVisual() {
-    garantirVisorHiitVivo();
-    const mm = String(Math.floor(hiitRestante / 60)).padStart(2, "0");
-    const ss = String(hiitRestante % 60).padStart(2, "0");
-    const textoTempo = `${mm}:${ss}`;
-
-    const relEl = document.getElementById("chbHiitRelogioTexto");
-    const estEl = document.getElementById("chbHiitEstadoLabel");
-    if (relEl) relEl.textContent = textoTempo;
-    if (estEl) {
-      estEl.textContent = `${hiitAtivo ? "A CONTAR" : "PAUSADO"} • Round ${hiitRound}`;
-      estEl.style.color = hiitAtivo ? "#34d399" : "#fbbf24";
-    }
   }
 
   function lerSegundosTreinoInput() {
@@ -202,20 +150,43 @@
     return 40;
   }
 
+  function atualizarContadorHiitVisual() {
+    const sec = obterSecaoHiit();
+    if (!sec) return;
+    const mm = String(Math.floor(hiitRestante / 60)).padStart(2, "0");
+    const ss = String(hiitRestante % 60).padStart(2, "0");
+    const textoTempo = `${mm}:${ss}`;
+
+    sec.querySelectorAll("div, span, p, strong").forEach((el) => {
+      if (el.id === "chbHiitRelogioTexto") return;
+      if (el.children.length === 0 && /^\d{1,2}:\d{2}$/.test((el.textContent || "").trim())) {
+        el.textContent = textoTempo;
+      }
+    });
+
+    const relEl = document.getElementById("chbHiitRelogioTexto");
+    const estEl = document.getElementById("chbHiitEstadoLabel");
+    if (relEl) relEl.textContent = textoTempo;
+    if (estEl) {
+      estEl.textContent = `${hiitAtivo ? "A CONTAR" : "PAUSADO"} • Round ${hiitRound}`;
+      estEl.style.color = hiitAtivo ? "#34d399" : "#fbbf24";
+    }
+  }
+
   window.chbHiitIniciarReal = function () {
     hiitAtivo = true;
     if (hiitRestante <= 0) {
       hiitRestante = lerSegundosTreinoInput();
     }
-    ultimoTickMs = Date.now();
+    ultimoSegundoMs = Date.now();
     if (hiitInterval) clearInterval(hiitInterval);
     atualizarContadorHiitVisual();
 
     hiitInterval = setInterval(() => {
       if (!hiitAtivo) return;
       const agora = Date.now();
-      if (agora - ultimoTickMs >= 950) {
-        ultimoTickMs = agora;
+      if (agora - ultimoSegundoMs >= 1000) {
+        ultimoSegundoMs = agora;
         if (hiitRestante > 1) {
           hiitRestante -= 1;
         } else {
@@ -224,7 +195,7 @@
         }
         atualizarContadorHiitVisual();
       }
-    }, 250);
+    }, 200);
   };
 
   window.chbHiitPausarReal = function () {
@@ -257,96 +228,56 @@
     }
   };
 
-  function ligarControlesHiit() {
-    garantirVisorHiitVivo();
-    const sec = obterSecaoHiit();
-    if (!sec) return;
-    sec.querySelectorAll("button").forEach((btn) => {
+  document.addEventListener(
+    "click",
+    (ev) => {
+      const btn = ev.target.closest("button");
+      if (!btn) return;
+      const sec = obterSecaoHiit();
+      if (!sec || !sec.contains(btn)) return;
       const label = (btn.textContent || "").trim().toLowerCase();
-      if (label === "iniciar" && !btn.dataset.hiitReal) {
-        btn.dataset.hiitReal = "1";
-        btn.addEventListener("click", (e) => {
-          e.preventDefault();
-          window.chbHiitIniciarReal();
-        });
-      } else if (label === "pausar" && !btn.dataset.hiitReal) {
-        btn.dataset.hiitReal = "1";
-        btn.addEventListener("click", (e) => {
-          e.preventDefault();
-          window.chbHiitPausarReal();
-        });
-      } else if (label === "zerar" && !btn.dataset.hiitReal) {
-        btn.dataset.hiitReal = "1";
-        btn.addEventListener("click", (e) => {
-          e.preventDefault();
-          window.chbHiitZerarReal();
-        });
-      } else if (label.includes("full") && !btn.dataset.hiitReal) {
-        btn.dataset.hiitReal = "1";
-        btn.addEventListener("click", (e) => {
-          e.preventDefault();
-          window.chbHiitFullEcranReal();
-        });
+      if (label === "iniciar") {
+        window.chbHiitIniciarReal();
+      } else if (label === "pausar") {
+        window.chbHiitPausarReal();
+      } else if (label === "zerar") {
+        window.chbHiitZerarReal();
+      } else if (label.includes("full")) {
+        window.chbHiitFullEcranReal();
       }
-    });
-  }
+    },
+    true
+  );
 
-  // 3. CORRIGIR PLAYER QUANDO MOSTRA "VÍDEO INDISPONÍVEL" OU SEM VÍDEO VINCULADO
-  function corrigirPlayerSemVideoIndisponivel() {
+  function garantirPlayerEmbutidoComVideo() {
     const playerBox = document.getElementById("chbPlayerVideoTreinoBox");
-    if (!playerBox) return;
+    if (!playerBox || document.getElementById("chbVideoPlayerDiretoApp")) return;
 
-    let st = {};
-    try {
-      st = JSON.parse(localStorage.getItem("crosshitbox_central_treino_v1") || "{}") || {};
-    } catch {}
-
-    let dadosVid = { mapa: {} };
-    try {
-      dadosVid = JSON.parse(localStorage.getItem("crosshitbox_videos_programas_v1") || '{"mapa":{}}') || { mapa: {} };
-    } catch {}
-
-    const idAtual = st.videoAbertoId || "fit-hiit-20";
-    const tituloAtual = st.videoAbertoTitulo || "Treino CrossHitBox Tae";
-    const urlSalva = (dadosVid.mapa && dadosVid.mapa[idAtual]) || "";
-    const linkSeguro = urlSalva || LINKS_TREINO_SEGUROS[idAtual] || `https://www.youtube.com/results?search_query=${encodeURIComponent("CrossHitBox Tae " + tituloAtual)}`;
-
-    const temErroYoutube = Array.from(playerBox.querySelectorAll("*")).some((el) =>
-      (el.textContent || "").toLowerCase().includes("vídeo indisponível") ||
-      (el.textContent || "").toLowerCase().includes("video indisponivel") ||
+    const avisoSemVideo = Array.from(playerBox.querySelectorAll("div, p")).find((el) =>
       (el.textContent || "").toLowerCase().includes("ainda não foi associado um vídeo específico")
     );
+    if (!avisoSemVideo) return;
 
-    if (temErroYoutube) {
-      const stage = document.getElementById("chbVideoStageFull") || playerBox;
-      let painelAcao = document.getElementById("chbPainelVideoProntoUso");
-      if (!painelAcao) {
-        painelAcao = document.createElement("div");
-        painelAcao.id = "chbPainelVideoProntoUso";
-        painelAcao.className = "bg-slate-900 border border-amber-500/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3";
-        stage.appendChild(painelAcao);
-      }
-      painelAcao.innerHTML = `
-        <div>
-          <div class="text-xs font-black text-white">${tituloAtual}</div>
-          <div class="text-[11px] text-slate-300">Abre o vídeo no leitor com ecrã ativo e sem bloqueio de incorporação.</div>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <a href="${linkSeguro}" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs">
-            Abrir Vídeo do Treino
-          </a>
-          <button type="button" onclick="window.chbAlternarFullEcranVideo && window.chbAlternarFullEcranVideo()" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs">
-            Full Ecrã
-          </button>
-        </div>
-      `;
-    }
+    const stage = document.getElementById("chbVideoStageFull") || playerBox;
+    const wrap = document.createElement("div");
+    wrap.id = "chbVideoPlayerDiretoApp";
+    wrap.className = "rounded-xl overflow-hidden border border-slate-800 bg-black space-y-2 p-2";
+    wrap.innerHTML = `
+      <video src="${VIDEO_DEMO_MP4}" controls playsinline class="w-full max-h-[65vh] rounded-lg bg-black"></video>
+      <div class="flex items-center justify-between text-[11px] text-slate-300 px-1">
+        <span>Reprodução integrada no programa • Seleciona Full Ecrã para expandir</span>
+        <button type="button" onclick="window.chbAlternarFullEcranVideo && window.chbAlternarFullEcranVideo()" class="px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-black">
+          Full Ecrã
+        </button>
+      </div>
+    `;
+    stage.appendChild(wrap);
   }
 
   function executarCorrecoes() {
     sincronizarInscricoesParaAdmin();
-    ligarControlesHiit();
-    corrigirPlayerSemVideoIndisponivel();
+    atualizarContadorHiitVisual();
+    garantirPlayerEmbutidoComVideo();
   }
 
   if (document.readyState === "loading") {
@@ -354,5 +285,5 @@
   } else {
     setTimeout(executarCorrecoes, 450);
   }
-  setInterval(corrigirPlayerSemVideoIndisponivel, 1500);
+  setInterval(garantirPlayerEmbutidoComVideo, 1500);
 })();
