@@ -124,7 +124,7 @@
     }
   };
 
-  // CRONÓMETRO HIIT / TABATA COM CONTAGEM REAL VISÍVEL + FULL ECRÃ
+  // CRONÓMETRO HIIT / TABATA COM CONTAGEM REAL EM AMBOS OS PERFIS
   let hiitInterval = null;
   let hiitRestante = 40;
   let hiitAtivo = false;
@@ -155,11 +155,24 @@
     const ss = String(hiitRestante % 60).padStart(2, "0");
     const textoTempo = `${mm}:${ss}`;
 
+    // Atualiza o visor de tempo grande (MM:SS) no cartão HIIT em ambos os perfis
+    let candidatoRelogio = null;
+    let maiorFonte = 0;
     sec.querySelectorAll("div, span, p, strong").forEach((el) => {
-      if (el.children.length === 0 && /^\d{1,2}:\d{2}$/.test((el.textContent || "").trim())) {
-        el.textContent = textoTempo;
+      if (el.children.length === 0) {
+        const txt = (el.textContent || "").trim();
+        if (/^\d{1,2}:\d{2}$/.test(txt)) {
+          const tam = parseFloat(window.getComputedStyle(el).fontSize) || 0;
+          if (tam >= maiorFonte) {
+            maiorFonte = tam;
+            candidatoRelogio = el;
+          }
+        }
       }
     });
+    if (candidatoRelogio) {
+      candidatoRelogio.textContent = textoTempo;
+    }
 
     sec.querySelectorAll("div, span, p").forEach((el) => {
       if (el.children.length === 0 && /round\s+\d+/i.test(el.textContent || "")) {
@@ -232,7 +245,7 @@
     true
   );
 
-  // PLAYER EMBUTIDO FUNCIONAL COM CONTAGEM E FULL ECRÃ
+  // PLAYER EMBUTIDO FUNCIONAL COM CONTAGEM E FULL ECRÃ (ADMIN + ATLETA)
   let aulaEmbutidaInterval = null;
   let aulaEmbutidaSeg = 0;
   let aulaEmbutidaRodando = false;
