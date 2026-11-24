@@ -23,6 +23,7 @@
     }
   }
 
+  // 1. SINCRONIZAR NOVOS INSCRITOS PARA O ADMIN E ISOLAR SESSÃO DO ATLETA
   function sincronizarInscricoesParaAdmin() {
     const excl = lerExcluidos();
     const mapa = new Map();
@@ -97,6 +98,32 @@
     }
   }
 
+  function isolarDadosAtletaAtual() {
+    if (ehAdmin()) return;
+    const sessAtual = String(sessionStorage.getItem("chb_sessao_membro_autenticada_v1") || "").trim().toLowerCase();
+    if (!sessAtual || sessAtual.includes("rajadabranco")) return;
+
+    // Garante que o perfil exibido corresponde ao atleta autenticado e não aos registos de outro atleta
+    try {
+      const perfis = JSON.parse(localStorage.getItem("crosshitbox_perfis_completos_v1") || "[]");
+      if (Array.isArray(perfis)) {
+        const meuPerfil = perfis.find(
+          (p) =>
+            p &&
+            (String(p.email || "").trim().toLowerCase() === sessAtual ||
+              String(p.nome || "").trim().toLowerCase() === sessAtual)
+        );
+        if (meuPerfil) {
+          document.querySelectorAll("h1, h2, h3, span, div, p").forEach((el) => {
+            if (el.children.length === 0 && (el.textContent || "").toLowerCase().includes("rajadabranco")) {
+              el.textContent = (el.textContent || "").replace(/rajadabranco/gi, meuPerfil.nome || sessAtual);
+            }
+          });
+        }
+      }
+    } catch {}
+  }
+
   window.chbAprovarELiberarMembro = function (ref) {
     const alvo = String(ref || "").trim().toLowerCase();
     CHAVES_MEMBROS.forEach((chave) => {
@@ -124,106 +151,158 @@
     }
   };
 
-  // CRONÓMETRO HIIT / TABATA COM CONTAGEM REAL EM AMBOS OS PERFIS
-  let hiitInterval = null;
-  let hiitRestante = 40;
-  let hiitAtivo = false;
-  let hiitRound = 1;
+  // 2. CRONÓMETRO HIIT / TABATA FUNCIONAL EM AMBOS OS PERFIS (ADMIN + ATLETA)
+  let hiitTimerId = null;
+  let hiitSegundosRestantes = 40;
+  let hiitFaseTrabalho = true;
+  let hiitRoundAtual = 1;
+  let hiitEmExecucao = false;
 
-  function obterSecaoHiit() {
-    return Array.from(document.querySelectorAll("section, div")).find((el) => {
-      const t = el.innerText || "";
-      return t.includes("Cronómetro HIIT / Tabata") && t.includes("Round");
+  function obterCartaoHiitExato() {
+    const candidatos = Array.from(document.querySelectorAll("section, div"));
+    return (
+      candidatos.find((el) => {
+        const t = el.innerText || "";
+        return t.includes("Cronómetro HIIT / Tabata") && t.includes("Round") && el.querySelector("button");
+      }) || null
+    );
+  }
+
+  function lerConfigHiit(cartao) {
+    let treino = 40;
+    let descanso = 20;
+    let totalRounds = 8;
+    if (!cartao) return { treino, descanso, totalRounds };
+
+    const inputs = Array.from(cartao.querySelectorAll("input[type='number'], input"));
+    inputs.forEach((inp) => {
+      const rotulo = ((inp.parentElement && inp.parentElement.innerText) || "").toLowerCase();
+      const val = parseInt(inp.value, 10);
+      if (!Number.isFinite(val) || val <= 0) return;
+      if (rotulo.includes("treino")) treino = val;
+      else if (rotulo.includes("descanso")) descanso = val;
+      else if (rotulo.includes("round")) totalRounds = val;
     });
-  }
 
-  function lerSegundosTreinoInput() {
-    const sec = obterSecaoHiit();
-    if (!sec) return 40;
-    const inps = Array.from(sec.querySelectorAll("input[type='number'], input"));
-    for (const inp of inps) {
-      const v = parseInt(inp.value, 10);
-      if (Number.isFinite(v) && v > 0 && v <= 600) return v;
+    if (inputs.length >= 3) {
+      const v0 = parseInt(inputs[0].value, 10);
+      const v1 = parseInt(inputs[1].value, 10);
+      const v2 = parseInt(inputs[2].value, 10);
+      if (Number.isFinite(v0) && v0 > 0) treino = v0;
+      if (Number.isFinite(v1) && v1 > 0) descanso = v1;
+      if (Number.isFinite(v2) && v2 > 0) totalRounds = v2;
     }
-    return 40;
+
+    return { treino, descanso, totalRounds };
   }
 
-  function pintarRelogioHiit() {
-    const sec = obterSecaoHiit();
-    if (!sec) return;
-    const mm = String(Math.floor(hiitRestante / 60)).padStart(2, "0");
-    const ss = String(hiitRestante % 60).padStart(2, "0");
-    const textoTempo = `${mm}:${ss}`;
+  function atualizarVisorHiitIsolado() {
+    const cartao = obterCartaoHiitExato();
+    if (!cartao) return;
 
-    // Atualiza o visor de tempo grande (MM:SS) no cartão HIIT em ambos os perfis
-    let candidatoRelogio = null;
-    let maiorFonte = 0;
-    sec.querySelectorAll("div, span, p, strong").forEach((el) => {
+    const cfg = lerConfigHiit(cartao);
+    const mm = String(Math.floor(hiitSegundosRestantes / 60)).padStart(2, "0");
+    const ss = String(hiitSegundosRestantes % 60).padStart(2, "0");
+    const relogioStr = `${mm}:${ss}`;
+
+    let visorTempo = null;
+    let maiorTamanho = 0;
+    cartao.querySelectorAll("div, span, p, strong").forEach((el) => {
       if (el.children.length === 0) {
         const txt = (el.textContent || "").trim();
         if (/^\d{1,2}:\d{2}$/.test(txt)) {
-          const tam = parseFloat(window.getComputedStyle(el).fontSize) || 0;
-          if (tam >= maiorFonte) {
-            maiorFonte = tam;
-            candidatoRelogio = el;
+          const fs = parseFloat(window.getComputedStyle(el).fontSize) || 0;
+          if (fs >= maiorTamanho) {
+            maiorTamanho = fs;
+            visorTempo = el;
           }
         }
       }
     });
-    if (candidatoRelogio) {
-      candidatoRelogio.textContent = textoTempo;
+    if (visorTempo) {
+      visorTempo.textContent = relogioStr;
     }
 
-    sec.querySelectorAll("div, span, p").forEach((el) => {
+    cartao.querySelectorAll("div, span, p").forEach((el) => {
       if (el.children.length === 0 && /round\s+\d+/i.test(el.textContent || "")) {
-        el.textContent = (el.textContent || "").replace(/round\s+\d+/i, `Round ${hiitRound}`);
+        el.textContent = `Round ${hiitRoundAtual} de ${cfg.totalRounds}`;
+      }
+    });
+
+    cartao.querySelectorAll("div, span").forEach((el) => {
+      if (el.children.length === 0) {
+        const t = (el.textContent || "").trim().toUpperCase();
+        if (t === "TRABALHO" || t === "DESCANSO" || t === "PRONTO") {
+          el.textContent = hiitFaseTrabalho ? "TRABALHO" : "DESCANSO";
+        }
       }
     });
   }
 
-  function iniciarHiit() {
-    hiitAtivo = true;
-    if (hiitRestante <= 0) {
-      hiitRestante = lerSegundosTreinoInput();
-    }
-    if (hiitInterval) clearInterval(hiitInterval);
-    pintarRelogioHiit();
-    hiitInterval = setInterval(() => {
-      if (!hiitAtivo) return;
-      if (hiitRestante > 1) {
-        hiitRestante -= 1;
-      } else {
-        hiitRound += 1;
-        hiitRestante = lerSegundosTreinoInput();
+  function passoSegundoHiit() {
+    if (!hiitEmExecucao) return;
+    const cfg = lerConfigHiit(obterCartaoHiitExato());
+
+    if (hiitSegundosRestantes > 1) {
+      hiitSegundosRestantes -= 1;
+    } else if (hiitFaseTrabalho) {
+      hiitFaseTrabalho = false;
+      hiitSegundosRestantes = cfg.descanso;
+    } else if (hiitRoundAtual < cfg.totalRounds) {
+      hiitRoundAtual += 1;
+      hiitFaseTrabalho = true;
+      hiitSegundosRestantes = cfg.treino;
+    } else {
+      hiitEmExecucao = false;
+      if (hiitTimerId) {
+        clearInterval(hiitTimerId);
+        hiitTimerId = null;
       }
-      pintarRelogioHiit();
-    }, 1000);
-  }
-
-  function pausarHiit() {
-    hiitAtivo = false;
-    if (hiitInterval) {
-      clearInterval(hiitInterval);
-      hiitInterval = null;
+      hiitSegundosRestantes = 0;
     }
+
+    atualizarVisorHiitIsolado();
   }
 
-  function zerarHiit() {
-    hiitAtivo = false;
-    if (hiitInterval) {
-      clearInterval(hiitInterval);
-      hiitInterval = null;
+  function iniciarCronometroHiit() {
+    const cfg = lerConfigHiit(obterCartaoHiitExato());
+    if (hiitSegundosRestantes <= 0) {
+      hiitSegundosRestantes = cfg.treino;
+      hiitFaseTrabalho = true;
     }
-    hiitRound = 1;
-    hiitRestante = lerSegundosTreinoInput();
-    pintarRelogioHiit();
+    hiitEmExecucao = true;
+    if (hiitTimerId) clearInterval(hiitTimerId);
+    atualizarVisorHiitIsolado();
+    hiitTimerId = setInterval(passoSegundoHiit, 1000);
   }
 
-  function fullEcranHiit() {
-    const sec = obterSecaoHiit();
-    if (!sec) return;
-    if (!document.fullscreenElement && typeof sec.requestFullscreen === "function") {
-      sec.requestFullscreen().catch(() => {});
+  function pausarCronometroHiit() {
+    hiitEmExecucao = false;
+    if (hiitTimerId) {
+      clearInterval(hiitTimerId);
+      hiitTimerId = null;
+    }
+    atualizarVisorHiitIsolado();
+  }
+
+  function zerarCronometroHiit() {
+    hiitEmExecucao = false;
+    if (hiitTimerId) {
+      clearInterval(hiitTimerId);
+      hiitTimerId = null;
+    }
+    const cfg = lerConfigHiit(obterCartaoHiitExato());
+    hiitFaseTrabalho = true;
+    hiitRoundAtual = 1;
+    hiitSegundosRestantes = cfg.treino;
+    atualizarVisorHiitIsolado();
+  }
+
+  function fullEcranCronometroHiit() {
+    const cartao = obterCartaoHiitExato();
+    if (!cartao) return;
+    if (!document.fullscreenElement && typeof cartao.requestFullscreen === "function") {
+      cartao.requestFullscreen().catch(() => {});
     } else if (document.fullscreenElement && typeof document.exitFullscreen === "function") {
       document.exitFullscreen().catch(() => {});
     }
@@ -234,52 +313,32 @@
     (ev) => {
       const btn = ev.target.closest("button");
       if (!btn) return;
-      const sec = obterSecaoHiit();
-      if (!sec || !sec.contains(btn)) return;
-      const label = (btn.textContent || "").trim().toLowerCase();
-      if (label === "iniciar") iniciarHiit();
-      else if (label === "pausar") pausarHiit();
-      else if (label === "zerar") zerarHiit();
-      else if (label.includes("full")) fullEcranHiit();
+      const cartao = obterCartaoHiitExato();
+      if (!cartao || !cartao.contains(btn)) return;
+
+      const rotulo = (btn.textContent || "").trim().toLowerCase();
+      if (rotulo === "iniciar") {
+        iniciarCronometroHiit();
+      } else if (rotulo === "pausar") {
+        pausarCronometroHiit();
+      } else if (rotulo === "zerar") {
+        zerarCronometroHiit();
+      } else if (rotulo.includes("full")) {
+        fullEcranCronometroHiit();
+      }
     },
     true
   );
 
-  // PLAYER EMBUTIDO FUNCIONAL COM CONTAGEM E FULL ECRÃ (ADMIN + ATLETA)
-  let aulaEmbutidaInterval = null;
-  let aulaEmbutidaSeg = 0;
-  let aulaEmbutidaRodando = false;
-
-  window.chbTogglePlayerEmbutido = function () {
-    const relEl = document.getElementById("chbRelogioVideoEmbutido");
-    if (aulaEmbutidaRodando) {
-      aulaEmbutidaRodando = false;
-      if (aulaEmbutidaInterval) {
-        clearInterval(aulaEmbutidaInterval);
-        aulaEmbutidaInterval = null;
-      }
-    } else {
-      aulaEmbutidaRodando = true;
-      if (aulaEmbutidaInterval) clearInterval(aulaEmbutidaInterval);
-      aulaEmbutidaInterval = setInterval(() => {
-        if (!aulaEmbutidaRodando) return;
-        aulaEmbutidaSeg += 1;
-        const m = String(Math.floor(aulaEmbutidaSeg / 60)).padStart(2, "0");
-        const s = String(aulaEmbutidaSeg % 60).padStart(2, "0");
-        const el = document.getElementById("chbRelogioVideoEmbutido");
-        if (el) el.textContent = `${m}:${s}`;
-      }, 1000);
-    }
-    if (relEl && !aulaEmbutidaRodando) {
-      const m = String(Math.floor(aulaEmbutidaSeg / 60)).padStart(2, "0");
-      const s = String(aulaEmbutidaSeg % 60).padStart(2, "0");
-      relEl.textContent = `${m}:${s}`;
-    }
-  };
-
   function executarCorrecoes() {
     sincronizarInscricoesParaAdmin();
-    pintarRelogioHiit();
+    isolarDadosAtletaAtual();
+    const cartao = obterCartaoHiitExato();
+    if (cartao && !hiitEmExecucao) {
+      const cfg = lerConfigHiit(cartao);
+      hiitSegundosRestantes = cfg.treino;
+      atualizarVisorHiitIsolado();
+    }
   }
 
   if (document.readyState === "loading") {
