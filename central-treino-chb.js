@@ -3,6 +3,7 @@
   window.__chbCentralTreino = true;
 
   const KEY_TREINOS = "crosshitbox_central_treino_v1";
+  const KEY_VIDEOS_TREINOS = "crosshitbox_videos_programas_v1";
 
   const PROGRAMAS_NTC = [
     {
@@ -66,6 +67,61 @@
     }
   ];
 
+  const ITENS_CORRIDA_VIDEO = [
+    {
+      id: "run-tecnica-aquecimento",
+      titulo: "Aquecimento Dinâmico & Técnica de Corrida / Caminhada"
+    }
+  ];
+
+  function ehAdmin() {
+    return (window.location.pathname || "").toLowerCase().includes("admin");
+  }
+
+  function lerVideosTreinos() {
+    try {
+      const raw = localStorage.getItem(KEY_VIDEOS_TREINOS);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === "object") {
+        return {
+          mapa: parsed.mapa && typeof parsed.mapa === "object" ? parsed.mapa : {},
+          extras: Array.isArray(parsed.extras) ? parsed.extras : []
+        };
+      }
+    } catch {}
+    return { mapa: {}, extras: [] };
+  }
+
+  function guardarVideosTreinos(dados) {
+    try {
+      localStorage.setItem(KEY_VIDEOS_TREINOS, JSON.stringify(dados));
+    } catch {}
+  }
+
+  function converterParaEmbed(urlRaw) {
+    const url = String(urlRaw || "").trim();
+    if (!url) return null;
+
+    // YouTube watch / shorts / youtu.be
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/);
+    if (ytMatch && ytMatch[1]) {
+      return { tipo: "iframe", src: `https://www.youtube.com/embed/${ytMatch[1]}?rel=0`, original: url };
+    }
+
+    // Google Drive file link
+    const driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+      return { tipo: "iframe", src: `https://drive.google.com/file/d/${driveMatch[1]}/preview`, original: url };
+    }
+
+    // Ficheiro direto de vídeo (mp4, webm, mov)
+    if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url) || url.startsWith("data:video/")) {
+      return { tipo: "video", src: url, original: url };
+    }
+
+    return { tipo: "link", src: url, original: url };
+  }
+
   function lerEstado() {
     try {
       const raw = localStorage.getItem(KEY_TREINOS);
@@ -77,7 +133,9 @@
           corridas: Array.isArray(parsed.corridas) ? parsed.corridas : [],
           aulasFeitas: Array.isArray(parsed.aulasFeitas) ? parsed.aulasFeitas : [],
           filtroDuracao: parsed.filtroDuracao || "todas",
-          abaInterna: parsed.abaInterna || "corrida_caminhada"
+          abaInterna: parsed.abaInterna || "cardio_fiton",
+          videoAbertoId: parsed.videoAbertoId || "",
+          videoAbertoTitulo: parsed.videoAbertoTitulo || ""
         };
       }
     } catch {}
@@ -87,7 +145,9 @@
       corridas: [],
       aulasFeitas: [],
       filtroDuracao: "todas",
-      abaInterna: "corrida_caminhada"
+      abaInterna: "cardio_fiton",
+      videoAbertoId: "",
+      videoAbertoTitulo: ""
     };
   }
 
@@ -112,6 +172,76 @@
     const st = lerEstado();
     st.filtroDuracao = dur;
     guardarEstado(st);
+    renderizarCentralTreino();
+  };
+
+  window.chbAbrirVideoTreino = function (itemId, titulo) {
+    const st = lerEstado();
+    st.videoAbertoId = itemId;
+    st.videoAbertoTitulo = titulo || "Vídeo do Treino";
+    guardarEstado(st);
+    renderizarCentralTreino();
+    const player = document.getElementById("chbPlayerVideoTreinoBox");
+    if (player && typeof player.scrollIntoView === "function") {
+      player.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  };
+
+  window.chbFecharVideoTreino = function () {
+    const st = lerEstado();
+    st.videoAbertoId = "";
+    st.videoAbertoTitulo = "";
+    guardarEstado(st);
+    renderizarCentralTreino();
+  };
+
+  window.chbGuardarVideoAssociado = function (ev) {
+    if (ev) ev.preventDefault();
+    const selEl = document.getElementById("chbVidDestinoId");
+    const urlEl = document.getElementById("chbVidUrlInput");
+    const destId = selEl ? selEl.value : "";
+    const urlVal = urlEl ? urlEl.value.trim() : "";
+    if (!destId) return;
+
+    const dados = lerVideosTreinos();
+    if (urlVal) {
+      dados.mapa[destId] = urlVal;
+    } else {
+      delete dados.mapa[destId];
+    }
+    guardarVideosTreinos(dados);
+    if (urlEl) urlEl.value = "";
+    renderizarCentralTreino();
+  };
+
+  window.chbAdicionarAulaVideoExtra = function (ev) {
+    if (ev) ev.preventDefault();
+    const titEl = document.getElementById("chbExtraTitulo");
+    const catEl = document.getElementById("chbExtraCategoria");
+    const durEl = document.getElementById("chbExtraDuracao");
+    const urlEl = document.getElementById("chbExtraUrl");
+
+    const titulo = (titEl && titEl.value.trim()) || "";
+    const categoria = (catEl && catEl.value) || "Cardio em Casa / FitOn";
+    const duracao = Math.max(5, parseInt((durEl && durEl.value) || "20", 10) || 20);
+    const url = (urlEl && urlEl.value.trim()) || "";
+    if (!titulo || !url) return;
+
+    const novoId = "extra-" + Date.now();
+    const dados = lerVideosTreinos();
+    dados.extras.unshift({
+      id: novoId,
+      titulo,
+      duracao,
+      intensidade: "Guiado por Vídeo",
+      estilo: categoria,
+      blocos: "Aula em vídeo adicionada pelo treinador"
+    });
+    dados.mapa[novoId] = url;
+    guardarVideosTreinos(dados);
+
+    if (titEl) titEl.value = "";
+    if (urlEl) urlEl.value = "";
     renderizarCentralTreino();
   };
 
@@ -209,9 +339,124 @@
     timerInterval = null;
     timerRodando = false;
     timerSegundos = 0;
-    guardarEstado(lerEstado());
     renderizarCentralTreino();
   };
+
+  function renderizarPlayerVideo(st, dadosVideos) {
+    if (!st.videoAbertoId) return "";
+    const urlSalva = dadosVideos.mapa[st.videoAbertoId] || "";
+    const embed = converterParaEmbed(urlSalva);
+
+    let conteudoPlayer = "";
+    if (!embed) {
+      const buscaYt = `https://www.youtube.com/results?search_query=${encodeURIComponent("CrossHitBox Tae " + st.videoAbertoTitulo)}`;
+      conteudoPlayer = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center space-y-2">
+          <div class="text-slate-300 font-bold">Ainda não foi associado um vídeo específico pelo treinador para este treino.</div>
+          <a href="${buscaYt}" target="_blank" rel="noopener" class="inline-block px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
+            Abrir Demonstração no YouTube
+          </a>
+        </div>
+      `;
+    } else if (embed.tipo === "iframe") {
+      conteudoPlayer = `
+        <div class="aspect-video w-full rounded-xl overflow-hidden border border-slate-800 bg-black">
+          <iframe src="${embed.src}" title="${st.videoAbertoTitulo}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      `;
+    } else if (embed.tipo === "video") {
+      conteudoPlayer = `
+        <div class="rounded-xl overflow-hidden border border-slate-800 bg-black">
+          <video src="${embed.src}" controls class="w-full max-h-[420px]"></video>
+        </div>
+      `;
+    } else {
+      conteudoPlayer = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-3">
+          <span class="text-slate-300 truncate">${embed.original}</span>
+          <a href="${embed.original}" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-black shrink-0">Abrir Vídeo</a>
+        </div>
+      `;
+    }
+
+    return `
+      <div id="chbPlayerVideoTreinoBox" class="bg-slate-950 border border-amber-500/50 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <div class="text-[10px] font-extrabold uppercase text-amber-400">Vídeo do Treino Selecionado</div>
+            <div class="font-black text-white text-sm">${st.videoAbertoTitulo}</div>
+          </div>
+          <button type="button" onclick="chbFecharVideoTreino()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">
+            Fechar Vídeo
+          </button>
+        </div>
+        ${conteudoPlayer}
+      </div>
+    `;
+  }
+
+  function renderizarGestorVideosAdmin(dadosVideos) {
+    if (!ehAdmin()) return "";
+
+    const todasOpcoes = [
+      ...AULAS_CARDIO_FITON.map((a) => ({ id: a.id, label: `[Cardio/FitOn] ${a.titulo}` })),
+      ...PROGRAMAS_NTC.map((p) => ({ id: p.id, label: `[Programa NTC] ${p.nome}` })),
+      ...ITENS_CORRIDA_VIDEO.map((r) => ({ id: r.id, label: `[Corrida/Caminhada] ${r.titulo}` })),
+      ...dadosVideos.extras.map((e) => ({ id: e.id, label: `[Extra] ${e.titulo}` }))
+    ];
+
+    const totalComVideo = Object.keys(dadosVideos.mapa).filter((k) => Boolean(dadosVideos.mapa[k])).length;
+
+    return `
+      <div class="bg-slate-950 border border-sky-500/35 rounded-2xl p-4 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+          <div>
+            <div class="text-[10px] font-extrabold uppercase text-sky-400">Gestão de Vídeos dos Programas (Admin)</div>
+            <div class="font-black text-white text-sm">Associar Vídeos a Todos os Treinos &amp; Programas</div>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg bg-sky-500/15 text-sky-300 font-bold text-[11px]">${totalComVideo} vídeo(s) associado(s)</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <form onsubmit="chbGuardarVideoAssociado(event)" class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+            <div class="font-bold text-white">1. Vincular Vídeo a um Treino / Programa Existente</div>
+            <div>
+              <label class="block text-[11px] text-slate-300 mb-1">Escolher Treino ou Programa</label>
+              <select id="chbVidDestinoId" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white">
+                ${todasOpcoes.map((op) => `<option value="${op.id}">${op.label}${dadosVideos.mapa[op.id] ? " ✓ (Com vídeo)" : ""}</option>`).join("")}
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-300 mb-1">Link do Vídeo (YouTube, Google Drive ou MP4)</label>
+              <input id="chbVidUrlInput" type="url" placeholder="https://www.youtube.com/watch?v=..." class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white">
+            </div>
+            <button type="submit" class="w-full py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black">
+              Guardar Vídeo no Treino
+            </button>
+          </form>
+
+          <form onsubmit="chbAdicionarAulaVideoExtra(event)" class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+            <div class="font-bold text-white">2. Criar Nova Aula em Vídeo no Catálogo</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input id="chbExtraTitulo" type="text" required placeholder="Título do treino" class="sm:col-span-2 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white">
+              <input id="chbExtraDuracao" type="number" min="5" max="120" value="25" placeholder="Min" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select id="chbExtraCategoria" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white">
+                <option value="Cardio em Casa / FitOn">Cardio em Casa / FitOn</option>
+                <option value="CrossHitBox Tae">CrossHitBox Tae</option>
+                <option value="Força & Mobilidade NTC">Força &amp; Mobilidade NTC</option>
+              </select>
+              <input id="chbExtraUrl" type="url" required placeholder="Link YouTube / Drive / MP4" class="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white">
+            </div>
+            <button type="submit" class="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
+              Publicar Nova Aula com Vídeo
+            </button>
+          </form>
+        </div>
+      </div>
+    `;
+  }
 
   function renderizarCentralTreino() {
     if (!document.body) return;
@@ -229,6 +474,9 @@
     }
 
     const st = lerEstado();
+    const dadosVideos = lerVideosTreinos();
+    const todasAulas = [...dadosVideos.extras, ...AULAS_CARDIO_FITON];
+
     const totalKm = st.corridas.reduce((acc, r) => acc + (parseFloat(r.distancia) || 0), 0);
     const totalKcalRun = st.corridas.reduce((acc, r) => acc + (parseInt(r.calorias, 10) || 0), 0);
     const totalMinCardio = st.aulasFeitas.reduce((acc, a) => acc + (parseInt(a.duracao, 10) || 0), 0);
@@ -237,7 +485,7 @@
     const mTimer = String(Math.floor(timerSegundos / 60)).padStart(2, "0");
     const sTimer = String(timerSegundos % 60).padStart(2, "0");
 
-    const aulasFiltradas = AULAS_CARDIO_FITON.filter((a) => {
+    const aulasFiltradas = todasAulas.filter((a) => {
       if (st.filtroDuracao === "todas") return true;
       return String(a.duracao) === String(st.filtroDuracao);
     });
@@ -250,10 +498,10 @@
               CrossHitBox Tae • Nike Training Club • Adidas Running • FitOn &amp; Cardio em Casa
             </div>
             <h2 class="text-lg sm:text-xl font-black text-white mt-0.5">
-              Central Completa de Treino, Corrida, Caminhada &amp; Cardio em Casa
+              Central Completa de Treino, Vídeos, Corrida, Caminhada &amp; Cardio em Casa
             </h2>
             <p class="text-slate-400 mt-0.5">
-              Programas guiados, registo de corrida e caminhada com ritmo e calorias, e aulas cardio em casa com cronómetro.
+              Assiste aos vídeos de cada treino e programa, acompanha o cronómetro e regista o teu progresso.
             </p>
           </div>
 
@@ -270,6 +518,9 @@
             </button>
           </div>
         </div>
+
+        ${renderizarGestorVideosAdmin(dadosVideos)}
+        ${renderizarPlayerVideo(st, dadosVideos)}
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
@@ -295,74 +546,83 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="chbTreinoAba('corrida_caminhada')" class="px-3.5 py-2 rounded-xl font-bold ${
-            st.abaInterna === "corrida_caminhada" ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-200 hover:bg-slate-700"
-          }">
-            Corrida &amp; Caminhada (Adidas Running)
-          </button>
           <button type="button" onclick="chbTreinoAba('cardio_fiton')" class="px-3.5 py-2 rounded-xl font-bold ${
             st.abaInterna === "cardio_fiton" ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-200 hover:bg-slate-700"
           }">
-            Cardio em Casa &amp; FitOn
+            Cardio em Casa &amp; FitOn (Com Vídeos)
           </button>
           <button type="button" onclick="chbTreinoAba('programas_ntc')" class="px-3.5 py-2 rounded-xl font-bold ${
             st.abaInterna === "programas_ntc" ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-200 hover:bg-slate-700"
           }">
-            Programas &amp; Força (Nike Training Club)
+            Programas &amp; Força NTC (Com Vídeos)
+          </button>
+          <button type="button" onclick="chbTreinoAba('corrida_caminhada')" class="px-3.5 py-2 rounded-xl font-bold ${
+            st.abaInterna === "corrida_caminhada" ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-200 hover:bg-slate-700"
+          }">
+            Corrida &amp; Caminhada (Adidas Running)
           </button>
         </div>
 
         ${
           st.abaInterna === "corrida_caminhada"
             ? `
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <form onsubmit="chbRegistarCorridaCaminhada(event)" class="lg:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-              <div class="font-black text-white text-sm">Registar Corrida ou Caminhada</div>
-              <div>
-                <label class="block text-[11px] font-bold text-slate-300 mb-1">Modalidade</label>
-                <select id="chbRunTipo" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
-                  <option value="Corrida">Corrida (Rua / Trilha / Passadeira)</option>
-                  <option value="Caminhada">Caminhada Ativa / Marcha</option>
-                  <option value="Intervalado">Treino Intervalado / Tiros</option>
-                </select>
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="block text-[11px] font-bold text-slate-300 mb-1">Distância (km)</label>
-                  <input id="chbRunDistancia" type="number" step="0.05" min="0.1" required placeholder="ex: 4.5" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
-                </div>
-                <div>
-                  <label class="block text-[11px] font-bold text-slate-300 mb-1">Tempo (min)</label>
-                  <input id="chbRunMinutos" type="number" step="1" min="1" required placeholder="ex: 30" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
-                </div>
-              </div>
-              <div>
-                <label class="block text-[11px] font-bold text-slate-300 mb-1">Percurso / Observação</label>
-                <input id="chbRunNota" type="text" placeholder="ex: Prainha até Quebra Canela" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
-              </div>
-              <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
-                Guardar Sessão de Corrida / Caminhada
+          <div class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-950 border border-slate-800 rounded-xl p-3">
+              <div class="text-slate-300 font-bold">Aquecimento Dinâmico &amp; Técnica de Passada antes de correr ou caminhar</div>
+              <button type="button" onclick="chbAbrirVideoTreino('run-tecnica-aquecimento', 'Aquecimento Dinâmico & Técnica de Corrida / Caminhada')" class="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black shrink-0">
+                Assistir Vídeo de Técnica &amp; Aquecimento
               </button>
-            </form>
+            </div>
 
-            <div class="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2.5">
-              <div class="font-black text-white text-sm">Histórico de Corrida &amp; Caminhada</div>
-              ${
-                st.corridas.length
-                  ? st.corridas
-                      .map(
-                        (r) => `
-                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-xl p-3">
-                    <div>
-                      <div class="font-bold text-white">${r.tipo} • ${r.distancia} km em ${r.minutos} min</div>
-                      <div class="text-[11px] text-slate-400">Ritmo: <span class="text-amber-400 font-bold">${r.ritmo}</span> • ${r.calorias} kcal • ${r.data}${r.nota ? " • " + r.nota : ""}</div>
-                    </div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <form onsubmit="chbRegistarCorridaCaminhada(event)" class="lg:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div class="font-black text-white text-sm">Registar Corrida ou Caminhada</div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-300 mb-1">Modalidade</label>
+                  <select id="chbRunTipo" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                    <option value="Corrida">Corrida (Rua / Trilha / Passadeira)</option>
+                    <option value="Caminhada">Caminhada Ativa / Marcha</option>
+                    <option value="Intervalado">Treino Intervalado / Tiros</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-300 mb-1">Distância (km)</label>
+                    <input id="chbRunDistancia" type="number" step="0.05" min="0.1" required placeholder="ex: 4.5" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
                   </div>
-                `
-                      )
-                      .join("")
-                  : `<div class="text-slate-400 py-4">Ainda não há corridas ou caminhadas registadas. Regista a primeira ao lado.</div>`
-              }
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-300 mb-1">Tempo (min)</label>
+                    <input id="chbRunMinutos" type="number" step="1" min="1" required placeholder="ex: 30" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-300 mb-1">Percurso / Observação</label>
+                  <input id="chbRunNota" type="text" placeholder="ex: Prainha até Quebra Canela" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
+                  Guardar Sessão de Corrida / Caminhada
+                </button>
+              </form>
+
+              <div class="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2.5">
+                <div class="font-black text-white text-sm">Histórico de Corrida &amp; Caminhada</div>
+                ${
+                  st.corridas.length
+                    ? st.corridas
+                        .map(
+                          (r) => `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-900 border border-slate-800 rounded-xl p-3">
+                      <div>
+                        <div class="font-bold text-white">${r.tipo} • ${r.distancia} km em ${r.minutos} min</div>
+                        <div class="text-[11px] text-slate-400">Ritmo: <span class="text-amber-400 font-bold">${r.ritmo}</span> • ${r.calorias} kcal • ${r.data}${r.nota ? " • " + r.nota : ""}</div>
+                      </div>
+                    </div>
+                  `
+                        )
+                        .join("")
+                    : `<div class="text-slate-400 py-4">Ainda não há corridas ou caminhadas registadas. Regista a primeira ao lado.</div>`
+                }
+              </div>
             </div>
           </div>
         `
@@ -386,23 +646,29 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               ${aulasFiltradas
-                .map(
-                  (a) => `
+                .map((a) => {
+                  const temVideo = Boolean(dadosVideos.mapa[a.id]);
+                  return `
                 <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between gap-3">
                   <div class="space-y-1.5">
                     <div class="flex items-center justify-between gap-2">
                       <span class="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 font-bold text-[10px]">${a.estilo}</span>
-                      <span class="text-slate-300 font-bold text-[11px]">${a.duracao} min • Intensidade ${a.intensidade}</span>
+                      <span class="text-slate-300 font-bold text-[11px]">${a.duracao} min • ${temVideo ? "Vídeo Oficial Ativo" : "Vídeo Disponível"}</span>
                     </div>
                     <div class="font-black text-white text-sm">${a.titulo}</div>
                     <p class="text-slate-400 text-[11px]">${a.blocos}</p>
                   </div>
-                  <button type="button" onclick="chbConcluirAulaCardio('${a.id}', '${a.titulo.replace(/'/g, "")}', ${a.duracao}, ${a.duracao * 10})" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black">
-                    Concluir Aula Cardio (+${a.duracao} min)
-                  </button>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="chbAbrirVideoTreino('${a.id}', '${a.titulo.replace(/'/g, "")}')" class="py-2 px-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black">
+                      Assistir Vídeo
+                    </button>
+                    <button type="button" onclick="chbConcluirAulaCardio('${a.id}', '${a.titulo.replace(/'/g, "")}', ${a.duracao}, ${a.duracao * 10})" class="py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black">
+                      Concluir (+${a.duracao}m)
+                    </button>
+                  </div>
                 </div>
-              `
-                )
+              `;
+                })
                 .join("")}
             </div>
           </div>
@@ -412,22 +678,31 @@
             ${PROGRAMAS_NTC.map((p) => {
               const feitos = st.sessoesConcluidas.filter((x) => x.programaId === p.id).length;
               const ativo = st.programaAtivo === p.id;
+              const temVideo = Boolean(dadosVideos.mapa[p.id]);
               return `
                 <div class="bg-slate-950 border ${ativo ? "border-amber-500" : "border-slate-800"} rounded-xl p-4 flex flex-col justify-between gap-3">
                   <div class="space-y-1.5">
-                    <div class="text-[10px] font-extrabold uppercase text-amber-400">${p.nivel}</div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[10px] font-extrabold uppercase text-amber-400">${p.nivel}</span>
+                      <span class="text-[10px] text-sky-300 font-bold">${temVideo ? "Vídeo Vinculado" : "Vídeo Guiado"}</span>
+                    </div>
                     <div class="font-black text-white text-sm">${p.nome}</div>
                     <div class="text-[11px] text-sky-300 font-semibold">${p.foco}</div>
                     <p class="text-slate-400 text-[11px]">${p.descricao}</p>
                     <div class="text-[11px] text-slate-300 font-bold pt-1">Progresso: ${feitos} / ${p.sessoes} sessões</div>
                   </div>
-                  <div class="flex gap-2">
-                    <button type="button" onclick="chbSelecionarProgramaNTC('${p.id}')" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold">
-                      ${ativo ? "Programa Ativo" : "Selecionar"}
+                  <div class="space-y-2">
+                    <button type="button" onclick="chbAbrirVideoTreino('${p.id}', '${p.nome.replace(/'/g, "")}')" class="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black">
+                      Assistir Vídeo do Programa
                     </button>
-                    <button type="button" onclick="chbConcluirSessaoNTC('${p.id}')" class="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
-                      +1 Sessão
-                    </button>
+                    <div class="flex gap-2">
+                      <button type="button" onclick="chbSelecionarProgramaNTC('${p.id}')" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold">
+                        ${ativo ? "Programa Ativo" : "Selecionar"}
+                      </button>
+                      <button type="button" onclick="chbConcluirSessaoNTC('${p.id}')" class="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">
+                        +1 Sessão
+                      </button>
+                    </div>
                   </div>
                 </div>
               `;
