@@ -103,7 +103,7 @@
     if (!url) return null;
 
     // YouTube watch / shorts / youtu.be
-    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/);
+        const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?.*?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/);
     if (ytMatch && ytMatch[1]) {
       return { tipo: "iframe", src: `https://www.youtube.com/embed/${ytMatch[1]}?rel=0`, original: url };
     }
