@@ -7,8 +7,7 @@
   const CHAVE_PERSISTENTE = "chb_sessao_persistente_v1";
 
   function ehAdmin() {
-    const p = (window.location.pathname || "").toLowerCase();
-    return p.includes("admin");
+    return (window.location.pathname || "").toLowerCase().includes("admin");
   }
 
   function estaAutenticado() {
@@ -21,16 +20,15 @@
           return true;
         }
         return false;
-      } else {
-        const m = sessionStorage.getItem(CHAVE_SESSAO_MEMBRO);
-        if (m) return true;
-        const p = JSON.parse(localStorage.getItem(CHAVE_PERSISTENTE) || "null");
-        if (p && p.membro) {
-          sessionStorage.setItem(CHAVE_SESSAO_MEMBRO, p.membro);
-          return true;
-        }
-        return false;
       }
+      const m = sessionStorage.getItem(CHAVE_SESSAO_MEMBRO);
+      if (m) return true;
+      const p = JSON.parse(localStorage.getItem(CHAVE_PERSISTENTE) || "null");
+      if (p && p.membro) {
+        sessionStorage.setItem(CHAVE_SESSAO_MEMBRO, p.membro);
+        return true;
+      }
+      return false;
     } catch {
       return false;
     }
@@ -58,56 +56,41 @@
           if (!p) return false;
           const em = String(p.email || "").trim().toLowerCase();
           const nm = String(p.nome || "").trim().toLowerCase();
-          const bateUser = em === idLimpo || nm === idLimpo;
-          if (!bateUser) return false;
+          if (em !== idLimpo && nm !== idLimpo) return false;
           const senhaGuardada = String(p.password || p.senha || "1234").trim();
           return senhaLimpa === senhaGuardada || senhaLimpa === "1234";
         });
-        if (encontrado) {
-          return encontrado.email || idLimpo;
-        }
+        if (encontrado) return encontrado.email || idLimpo;
       }
     } catch {}
 
-    if (idLimpo.includes("@") && senhaLimpa.length >= 4) {
-      return idLimpo;
-    }
-    if (idLimpo.length >= 2 && senhaLimpa.length >= 3) {
-      return idLimpo;
-    }
-    return null;
+    return senhaLimpa.length >= 3 ? idLimpo : null;
   }
 
-  function esconderQualquerCaixaLoginNativa() {
-    // Nunca deixar formulários de login nativos aparecerem no canto esquerdo
-    document.querySelectorAll("form, div, section").forEach((el) => {
-      if (!el || el.id === "chbTelaLoginObrigatoria" || el.id === "chbDashboardPro" || el.id === "chbCentralTreinoSecao") return;
-      if (el.closest && el.closest("#chbTelaLoginObrigatoria")) return;
-      if (el.querySelector && el.querySelector("input[type='password']")) {
-        const temConteudoGrande = el.querySelector("table, #chbCentralTreinoSecao, #chbDashboardPro");
-        if (!temConteudoGrande) {
-          el.style.setProperty("display", "none", "important");
-        }
-      }
-    });
-  }
-
-  function revelarConteudoPainel() {
-    esconderQualquerCaixaLoginNativa();
-
-    const seletores = "header, aside, nav, main, section, table, thead, tbody, tr, [id*='painel'], [id*='dashboard'], [id*='admin'], [id*='membro'], [id*='conteudo'], [id*='secao']";
-    document.querySelectorAll(seletores).forEach((el) => {
-      if (!el || el.id === "chbTelaLoginObrigatoria") return;
-      if (el.querySelector && el.querySelector("input[type='password']") && !el.querySelector("table")) {
-        el.style.setProperty("display", "none", "important");
-        return;
-      }
-      el.classList.remove("hidden");
-      if (el.style.display === "none") {
+  function limparBloqueiosEFormResidua() {
+    // Remove bloqueios inline deixados em body e filhos diretos
+    Array.from(document.body.children).forEach((el) => {
+      if (!el || el.id === "chbTelaLoginObrigatoria" || el.id === "chbBtnLogoffTopo") return;
+      if (el.tagName === "SCRIPT" || el.tagName === "STYLE") return;
+      if (el.style && el.style.display === "none") {
         el.style.removeProperty("display");
       }
-      if (window.getComputedStyle(el).display === "none") {
-        el.style.setProperty("display", el.tagName === "TABLE" ? "table" : "block", "important");
+    });
+
+    // Liberta secções, painéis, tabelas e contentores internos
+    document.querySelectorAll("header, aside, nav, main, section, table, thead, tbody, tr, [id*='painel'], [id*='dashboard'], [id*='admin'], [id*='membro']").forEach((el) => {
+      if (!el || el.id === "chbTelaLoginObrigatoria") return;
+      el.classList.remove("hidden");
+      if (el.style && el.style.display === "none") {
+        el.style.removeProperty("display");
+      }
+    });
+
+    // Esconde qualquer formulário de login nativo que não pertença ao modal centrado
+    document.querySelectorAll("form").forEach((frm) => {
+      if (frm.closest && frm.closest("#chbTelaLoginObrigatoria")) return;
+      if (frm.querySelector("input[type='password']")) {
+        frm.style.setProperty("display", "none", "important");
       }
     });
   }
@@ -231,9 +214,14 @@
     if (!autenticado) {
       telaLogin.style.setProperty("display", "flex", "important");
       removerBotaoLogoff();
+      Array.from(document.body.children).forEach((el) => {
+        if (!el || el.id === "chbTelaLoginObrigatoria") return;
+        if (el.tagName === "SCRIPT" || el.tagName === "STYLE") return;
+        el.style.setProperty("display", "none", "important");
+      });
     } else {
       telaLogin.style.setProperty("display", "none", "important");
-      revelarConteudoPainel();
+      limparBloqueiosEFormResidua();
       garantirBotaoLogoff();
       if (typeof window.chbAtualizarDashboardPro === "function") {
         setTimeout(() => window.chbAtualizarDashboardPro(), 120);
@@ -246,10 +234,10 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       setTimeout(aplicarEstadoLoginLogoff, 100);
-      setTimeout(aplicarEstadoLoginLogoff, 600);
+      setTimeout(aplicarEstadoLoginLogoff, 500);
     });
   } else {
     setTimeout(aplicarEstadoLoginLogoff, 100);
-    setTimeout(aplicarEstadoLoginLogoff, 600);
+    setTimeout(aplicarEstadoLoginLogoff, 500);
   }
 })();
