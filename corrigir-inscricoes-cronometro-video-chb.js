@@ -9,16 +9,16 @@
     "crosshitbox_perfis_completos_v1"
   ];
 
-  // Vídeos padrão embutidos caso ainda não haja link customizado para a aula selecionada
-  const VIDEOS_PADRAO_EMBED = {
-    "fit-hiit-20": "https://www.youtube.com/embed/ml6cT4AZdqI?rel=0",
-    "fit-tae-box-30": "https://www.youtube.com/embed/2MoGxae-zyo?rel=0",
-    "fit-queima-15": "https://www.youtube.com/embed/cbKkB3POqaY?rel=0",
-    "fit-baixo-impacto-25": "https://www.youtube.com/embed/enYITYwvPAQ?rel=0",
-    "ntc-base-tae": "https://www.youtube.com/embed/fcN37TxBE_s?rel=0",
-    "ntc-forca-potencia": "https://www.youtube.com/embed/UBMk30rjy0o?rel=0",
-    "ntc-mobilidade-core": "https://www.youtube.com/embed/g_tea8ZNk5A?rel=0",
-    "run-tecnica-aquecimento": "https://www.youtube.com/embed/3K8kG0V6hW0?rel=0"
+  // URLs de pesquisa/abertura garantidas (evitam "Vídeo indisponível" no iframe)
+  const LINKS_TREINO_SEGUROS = {
+    "fit-hiit-20": "https://www.youtube.com/results?search_query=HIIT+Cardio+em+Casa+20+min+sem+equipamento",
+    "fit-tae-box-30": "https://www.youtube.com/results?search_query=Cardio+Boxe+Tae+Bo+30+min",
+    "fit-queima-15": "https://www.youtube.com/results?search_query=Queima+Rapida+Core+15+min+HIIT",
+    "fit-baixo-impacto-25": "https://www.youtube.com/results?search_query=Cardio+Baixo+Impacto+25+min",
+    "ntc-base-tae": "https://www.youtube.com/results?search_query=Nike+Training+Club+Cardio+Condicionamento",
+    "ntc-forca-potencia": "https://www.youtube.com/results?search_query=Nike+Training+Club+Forca+Potencia",
+    "ntc-mobilidade-core": "https://www.youtube.com/results?search_query=Mobilidade+Core+Alongamento+20+min",
+    "run-tecnica-aquecimento": "https://www.youtube.com/results?search_query=Aquecimento+Tecnica+Corrida+Caminhada"
   };
 
   function ehAdmin() {
@@ -67,7 +67,9 @@
     });
 
     if (ehAdmin() && !document.getElementById("chbPainelAprovacaoRapida")) {
-      const pendentes = unificada.filter((u) => !u.aprovado && String(u.status || "").toLowerCase() !== "ativo" && String(u.status || "").toLowerCase() !== "aprovado");
+      const pendentes = unificada.filter(
+        (u) => !u.aprovado && String(u.status || "").toLowerCase() !== "ativo" && String(u.status || "").toLowerCase() !== "aprovado"
+      );
       const box = document.createElement("section");
       box.id = "chbPainelAprovacaoRapida";
       box.className = "max-w-6xl mx-auto my-4 px-3 sm:px-6";
@@ -135,51 +137,58 @@
     }
   };
 
-  // 2. CRONÓMETRO HIIT / TABATA COM CONTAGEM REAL VISÍVEL + FULL ECRÃ
+  // 2. CRONÓMETRO HIIT / TABATA COM CONTAGEM CONTÍNUA GARANTIDA + FULL ECRÃ
   let hiitInterval = null;
   let hiitRestante = 40;
   let hiitAtivo = false;
   let hiitRound = 1;
+  let ultimoTickMs = 0;
 
   function obterSecaoHiit() {
     return Array.from(document.querySelectorAll("section, div")).find((el) => {
-      const t = (el.innerText || "");
+      const t = el.innerText || "";
       return t.includes("Cronómetro HIIT / Tabata") && t.includes("Round");
     });
   }
 
-  function pintarContadorHiit() {
+  function garantirVisorHiitVivo() {
     const sec = obterSecaoHiit();
-    if (!sec) return;
+    if (!sec) return null;
+    let visor = document.getElementById("chbVisorHiitAtivoReal");
+    if (!visor) {
+      visor = document.createElement("div");
+      visor.id = "chbVisorHiitAtivoReal";
+      visor.style.cssText =
+        "margin-top:10px;padding:10px 14px;border-radius:12px;background:#020617;border:1px solid rgba(16,185,129,.45);display:flex;align-items:center;justify-content:space-between;color:#f8fafc;font-family:monospace;";
+      visor.innerHTML = `
+        <span id="chbHiitEstadoLabel" style="font-size:12px;font-weight:800;color:#34d399;">PRONTO • Round 1</span>
+        <span id="chbHiitRelogioTexto" style="font-size:24px;font-weight:900;color:#ffffff;">00:40</span>
+      `;
+      const botoesLinha = Array.from(sec.querySelectorAll("button")).find((b) =>
+        (b.textContent || "").trim().toLowerCase() === "iniciar"
+      );
+      if (botoesLinha && botoesLinha.parentElement && botoesLinha.parentElement.parentElement) {
+        botoesLinha.parentElement.parentElement.appendChild(visor);
+      } else {
+        sec.appendChild(visor);
+      }
+    }
+    return visor;
+  }
+
+  function atualizarContadorHiitVisual() {
+    garantirVisorHiitVivo();
     const mm = String(Math.floor(hiitRestante / 60)).padStart(2, "0");
     const ss = String(hiitRestante % 60).padStart(2, "0");
     const textoTempo = `${mm}:${ss}`;
 
-    // Atualiza o maior mostrador de tempo dentro do cronómetro HIIT
-    let maiorEl = null;
-    let maiorSize = 0;
-    sec.querySelectorAll("div, span, p, strong").forEach((el) => {
-      if (el.children.length === 0) {
-        const txt = (el.textContent || "").trim();
-        if (/^\d{1,2}:\d{2}$/.test(txt)) {
-          const fs = parseFloat(window.getComputedStyle(el).fontSize) || 0;
-          if (fs >= maiorSize) {
-            maiorSize = fs;
-            maiorEl = el;
-          }
-        }
-      }
-    });
-    if (maiorEl) {
-      maiorEl.textContent = textoTempo;
+    const relEl = document.getElementById("chbHiitRelogioTexto");
+    const estEl = document.getElementById("chbHiitEstadoLabel");
+    if (relEl) relEl.textContent = textoTempo;
+    if (estEl) {
+      estEl.textContent = `${hiitAtivo ? "A CONTAR" : "PAUSADO"} • Round ${hiitRound}`;
+      estEl.style.color = hiitAtivo ? "#34d399" : "#fbbf24";
     }
-
-    // Atualiza indicação de round se existir
-    sec.querySelectorAll("div, span, p").forEach((el) => {
-      if (el.children.length === 0 && /round\s+\d+/i.test(el.textContent || "")) {
-        el.textContent = (el.textContent || "").replace(/round\s+\d+/i, `Round ${hiitRound}`);
-      }
-    });
   }
 
   function lerSegundosTreinoInput() {
@@ -198,18 +207,24 @@
     if (hiitRestante <= 0) {
       hiitRestante = lerSegundosTreinoInput();
     }
+    ultimoTickMs = Date.now();
     if (hiitInterval) clearInterval(hiitInterval);
-    pintarContadorHiit();
+    atualizarContadorHiitVisual();
+
     hiitInterval = setInterval(() => {
       if (!hiitAtivo) return;
-      if (hiitRestante > 1) {
-        hiitRestante -= 1;
-      } else {
-        hiitRound += 1;
-        hiitRestante = lerSegundosTreinoInput();
+      const agora = Date.now();
+      if (agora - ultimoTickMs >= 950) {
+        ultimoTickMs = agora;
+        if (hiitRestante > 1) {
+          hiitRestante -= 1;
+        } else {
+          hiitRound += 1;
+          hiitRestante = lerSegundosTreinoInput();
+        }
+        atualizarContadorHiitVisual();
       }
-      pintarContadorHiit();
-    }, 1000);
+    }, 250);
   };
 
   window.chbHiitPausarReal = function () {
@@ -218,7 +233,7 @@
       clearInterval(hiitInterval);
       hiitInterval = null;
     }
-    pintarContadorHiit();
+    atualizarContadorHiitVisual();
   };
 
   window.chbHiitZerarReal = function () {
@@ -229,7 +244,7 @@
     }
     hiitRound = 1;
     hiitRestante = lerSegundosTreinoInput();
-    pintarContadorHiit();
+    atualizarContadorHiitVisual();
   };
 
   window.chbHiitFullEcranReal = function () {
@@ -243,6 +258,7 @@
   };
 
   function ligarControlesHiit() {
+    garantirVisorHiitVivo();
     const sec = obterSecaoHiit();
     if (!sec) return;
     sec.querySelectorAll("button").forEach((btn) => {
@@ -275,34 +291,62 @@
     });
   }
 
-  // 3. GARANTIR QUE O VÍDEO ABRE EMBUTIDO NO PRÓPRIO PROGRAMA (COM FALLBACK DE VÍDEO PRONTO)
-  function garantirPlayerEmbutidoComVideo() {
+  // 3. CORRIGIR PLAYER QUANDO MOSTRA "VÍDEO INDISPONÍVEL" OU SEM VÍDEO VINCULADO
+  function corrigirPlayerSemVideoIndisponivel() {
     const playerBox = document.getElementById("chbPlayerVideoTreinoBox");
     if (!playerBox) return;
-    const avisoSemVideo = Array.from(playerBox.querySelectorAll("div, p")).find((el) =>
-      (el.textContent || "").includes("Ainda não foi associado um vídeo específico")
-    );
-    if (!avisoSemVideo) return;
 
     let st = {};
     try {
       st = JSON.parse(localStorage.getItem("crosshitbox_central_treino_v1") || "{}") || {};
     } catch {}
-    const idAtual = st.videoAbertoId || "fit-hiit-20";
-    const embedSrc = VIDEOS_PADRAO_EMBED[idAtual] || "https://www.youtube.com/embed/ml6cT4AZdqI?rel=0";
 
-    const container = avisoSemVideo.parentElement || playerBox;
-    container.innerHTML = `
-      <div class="aspect-video w-full rounded-xl overflow-hidden border border-slate-800 bg-black">
-        <iframe src="${embedSrc}" title="${st.videoAbertoTitulo || "Treino CrossHitBox Tae"}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
-      </div>
-    `;
+    let dadosVid = { mapa: {} };
+    try {
+      dadosVid = JSON.parse(localStorage.getItem("crosshitbox_videos_programas_v1") || '{"mapa":{}}') || { mapa: {} };
+    } catch {}
+
+    const idAtual = st.videoAbertoId || "fit-hiit-20";
+    const tituloAtual = st.videoAbertoTitulo || "Treino CrossHitBox Tae";
+    const urlSalva = (dadosVid.mapa && dadosVid.mapa[idAtual]) || "";
+    const linkSeguro = urlSalva || LINKS_TREINO_SEGUROS[idAtual] || `https://www.youtube.com/results?search_query=${encodeURIComponent("CrossHitBox Tae " + tituloAtual)}`;
+
+    const temErroYoutube = Array.from(playerBox.querySelectorAll("*")).some((el) =>
+      (el.textContent || "").toLowerCase().includes("vídeo indisponível") ||
+      (el.textContent || "").toLowerCase().includes("video indisponivel") ||
+      (el.textContent || "").toLowerCase().includes("ainda não foi associado um vídeo específico")
+    );
+
+    if (temErroYoutube) {
+      const stage = document.getElementById("chbVideoStageFull") || playerBox;
+      let painelAcao = document.getElementById("chbPainelVideoProntoUso");
+      if (!painelAcao) {
+        painelAcao = document.createElement("div");
+        painelAcao.id = "chbPainelVideoProntoUso";
+        painelAcao.className = "bg-slate-900 border border-amber-500/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3";
+        stage.appendChild(painelAcao);
+      }
+      painelAcao.innerHTML = `
+        <div>
+          <div class="text-xs font-black text-white">${tituloAtual}</div>
+          <div class="text-[11px] text-slate-300">Abre o vídeo no leitor com ecrã ativo e sem bloqueio de incorporação.</div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a href="${linkSeguro}" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs">
+            Abrir Vídeo do Treino
+          </a>
+          <button type="button" onclick="window.chbAlternarFullEcranVideo && window.chbAlternarFullEcranVideo()" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs">
+            Full Ecrã
+          </button>
+        </div>
+      `;
+    }
   }
 
   function executarCorrecoes() {
     sincronizarInscricoesParaAdmin();
     ligarControlesHiit();
-    garantirPlayerEmbutidoComVideo();
+    corrigirPlayerSemVideoIndisponivel();
   }
 
   if (document.readyState === "loading") {
@@ -310,5 +354,5 @@
   } else {
     setTimeout(executarCorrecoes, 450);
   }
-  setInterval(garantirPlayerEmbutidoComVideo, 1500);
+  setInterval(corrigirPlayerSemVideoIndisponivel, 1500);
 })();
