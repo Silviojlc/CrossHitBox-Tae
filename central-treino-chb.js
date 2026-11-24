@@ -551,6 +551,11 @@
           }">
             Cardio em Casa &amp; FitOn (Com Vídeos)
           </button>
+          <button type="button" onclick="chbTreinoAba('crosshitbox_videos')" class="px-3.5 py-2 rounded-xl font-bold ${
+            st.abaInterna === "crosshitbox_videos" ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-200 hover:bg-slate-700"
+          }">
+            CROSSHITBOX TAE Vídeos
+          </button>
           <button type="button" onclick="chbTreinoAba('programas_ntc')" class="px-3.5 py-2 rounded-xl font-bold ${
             st.abaInterna === "programas_ntc" ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-200 hover:bg-slate-700"
           }">
