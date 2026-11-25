@@ -868,6 +868,33 @@ app.delete("/api/crosshitbox/fotos-avaliacao/:id", async (req, res) => {
   res.json({ ok: true, removido: idAlvo, fotos });
 });
 
+
+app.post("/api/inscricao-avaliacao", async (req, res) => {
+  try {
+    const { nome, email, senha, turno, objetivo, imc, patologias } = req.body || {};
+    if (!email) return res.status(400).json({ ok: false, mensagem: "E-mail obrigatório" });
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const nodemailer = require("nodemailer");
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: String(process.env.SMTP_SECURE || "false") === "true",
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      });
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: email,
+        subject: "CrossHitBox Tae — Os teus dados de acesso e avaliação",
+        text: "Olá " + (nome || "Atleta") + ",\n\nO teu cadastro foi registado.\nE-mail: " + email + "\nPalavra-passe: " + (senha || "") + "\nTurno: " + (turno || "") + "\nObjetivo: " + (objetivo || "") + (imc ? "\nIMC inicial: " + imc : "") + (patologias ? "\nPatologias: " + patologias : "") + "\n\nAguarda aprovação do treinador para acesso completo."
+      });
+      return res.json({ ok: true, mensagem: "E-mail enviado" });
+    }
+    return res.json({ ok: false, mensagem: "SMTP não configurado no ambiente" });
+  } catch (err) {
+    return res.status(500).json({ ok: false, mensagem: "Falha ao enviar e-mail" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor CrossHitBox Tae ativo na porta ${PORT}`);
 });
