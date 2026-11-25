@@ -1,6 +1,5 @@
 (function () {
-  if (window.__chbSolucaoDefinitivaCronometroESessao) return;
-  window.__chbSolucaoDefinitivaCronometroESessao = true;
+  window.__chbCronometroVersaoAtual = "v2026.11.25-estavel";
 
   // =========================================================================
   // 1. PROTEÇÃO CONTRA LOGOFF AUTOMÁTICO INDEVIDO NO ARRANQUE
@@ -29,10 +28,9 @@
         localStorage.setItem(BACKUP_SESSAO_KEY, JSON.stringify(snap));
       } catch {}
     }
-    return snap;
   }
 
-  function restaurarSessaoSeApagadaInesperadamente() {
+  function restaurarSessaoSeApagada() {
     try {
       const raw = sessionStorage.getItem(BACKUP_SESSAO_KEY) || localStorage.getItem(BACKUP_SESSAO_KEY);
       if (!raw) return;
@@ -47,7 +45,6 @@
     } catch {}
   }
 
-  // Se o utilizador clicar explicitamente em "Logoff" / "Sair", limpa o backup para respeitar o logout intencional
   document.addEventListener(
     "click",
     (ev) => {
@@ -65,13 +62,15 @@
   );
 
   capturarSessoesAtuais();
-  setInterval(() => {
-    restaurarSessaoSeApagadaInesperadamente();
-    capturarSessoesAtuais();
-  }, 400);
+  if (!window.__chbIntervalSessao) {
+    window.__chbIntervalSessao = setInterval(() => {
+      restaurarSessaoSeApagada();
+      capturarSessoesAtuais();
+    }, 500);
+  }
 
   // =========================================================================
-  // 2. CRONÓMETRO HIIT / TABATA / BOXE COM PRESETS TRAVADOS E CONTAGEM REAL
+  // 2. CRONÓMETRO HIIT / TABATA / BOXE (CONTAGEM REGRESSIVA REAL POR SEGUNDO)
   // =========================================================================
   let hiitAtivo = false;
   let hiitInicioMs = 0;
@@ -79,11 +78,10 @@
   let hiitRestanteSeg = 40;
   let hiitRound = 1;
   let hiitTrabalho = true;
-  let hiitLoopId = null;
   let presetBloqueioAteMs = 0;
-  let presetForcado = null; // { treino, descanso, rounds, rotulo }
+  let presetForcado = null;
 
-  function beep(freq = 880, ms = 120) {
+  function beep(freq = 880, ms = 110) {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
@@ -92,7 +90,7 @@
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
-      gain.gain.value = 0.06;
+      gain.gain.value = 0.05;
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
@@ -132,17 +130,17 @@
   function aplicarPresetNosInputs(cartao, preset) {
     if (!cartao || !preset) return;
     const inps = Array.from(cartao.querySelectorAll("input[type='number'], input"));
-    if (inps[0]) {
+    if (inps[0] && String(inps[0].value) !== String(preset.treino)) {
       inps[0].value = String(preset.treino);
       inps[0].dispatchEvent(new Event("input", { bubbles: true }));
       inps[0].dispatchEvent(new Event("change", { bubbles: true }));
     }
-    if (inps[1]) {
+    if (inps[1] && String(inps[1].value) !== String(preset.descanso)) {
       inps[1].value = String(preset.descanso);
       inps[1].dispatchEvent(new Event("input", { bubbles: true }));
       inps[1].dispatchEvent(new Event("change", { bubbles: true }));
     }
-    if (inps[2] && preset.rounds) {
+    if (inps[2] && preset.rounds && String(inps[2].value) !== String(preset.rounds)) {
       inps[2].value = String(preset.rounds);
       inps[2].dispatchEvent(new Event("input", { bubbles: true }));
       inps[2].dispatchEvent(new Event("change", { bubbles: true }));
@@ -201,32 +199,32 @@
           }
         }
       });
-      if (relEl) {
-        if (relEl.firstChild && relEl.firstChild.nodeType === Node.TEXT_NODE) {
-          relEl.firstChild.nodeValue = mmss;
-        } else {
-          relEl.textContent = mmss;
-        }
+      if (relEl && (relEl.textContent || "").trim() !== mmss) {
+        relEl.textContent = mmss;
       }
 
       cartao.querySelectorAll("div, span, p").forEach((el) => {
         if (el.children.length === 0 && /round\s+\d+/i.test(el.textContent || "")) {
-          el.textContent = `Round ${hiitRound} de ${cfg.totalRounds}`;
+          const novoRound = `Round ${hiitRound} de ${cfg.totalRounds}`;
+          if ((el.textContent || "").trim() !== novoRound) {
+            el.textContent = novoRound;
+          }
         }
       });
 
       cartao.querySelectorAll("div, span").forEach((el) => {
         if (el.children.length === 0) {
           const t = (el.textContent || "").trim().toUpperCase();
-          if (t === "TRABALHO" || t === "DESCANSO" || t === "PRONTO") {
-            el.textContent = hiitTrabalho ? "TRABALHO" : "DESCANSO";
+          const faseAlvo = hiitTrabalho ? "TRABALHO" : "DESCANSO";
+          if ((t === "TRABALHO" || t === "DESCANSO" || t === "PRONTO") && t !== faseAlvo) {
+            el.textContent = faseAlvo;
           }
         }
       });
     } catch {}
   }
 
-  function passoCartaoHiit() {
+  function atualizarTickHiit() {
     try {
       const cartao = localizarCartaoHiit();
       if (!cartao) return;
@@ -249,7 +247,7 @@
         return;
       }
 
-      beep(hiitTrabalho ? 660 : 990, 150);
+      beep(hiitTrabalho ? 660 : 990, 140);
       if (hiitTrabalho) {
         hiitTrabalho = false;
         hiitDuracaoSeg = cfg.descanso;
@@ -264,49 +262,35 @@
       } else {
         hiitAtivo = false;
         hiitRestanteSeg = 0;
-        if (hiitLoopId) {
-          clearInterval(hiitLoopId);
-          hiitLoopId = null;
-        }
       }
       pintarCartaoHiit();
     } catch {}
   }
 
-  function iniciarCartaoHiit() {
+  function iniciarHiit() {
     const cartao = localizarCartaoHiit();
     const cfg = lerValoresCartaoHiit(cartao);
-    beep(880, 120);
+    beep(880, 110);
     const base = hiitRestanteSeg > 0 ? hiitRestanteSeg : cfg.treino;
     hiitDuracaoSeg = base;
     hiitRestanteSeg = base;
     hiitInicioMs = Date.now();
     hiitAtivo = true;
-    passoCartaoHiit();
-    if (hiitLoopId) clearInterval(hiitLoopId);
-    hiitLoopId = setInterval(passoCartaoHiit, 100);
+    atualizarTickHiit();
   }
 
-  function pausarCartaoHiit() {
+  function pausarHiit() {
     if (hiitAtivo) {
-      passoCartaoHiit();
+      atualizarTickHiit();
       hiitAtivo = false;
-    }
-    if (hiitLoopId) {
-      clearInterval(hiitLoopId);
-      hiitLoopId = null;
     }
     pintarCartaoHiit();
   }
 
-  function zerarCartaoHiit() {
+  function zerarHiit() {
     const cartao = localizarCartaoHiit();
     const cfg = lerValoresCartaoHiit(cartao);
     hiitAtivo = false;
-    if (hiitLoopId) {
-      clearInterval(hiitLoopId);
-      hiitLoopId = null;
-    }
     hiitTrabalho = true;
     hiitRound = 1;
     hiitDuracaoSeg = cfg.treino;
@@ -315,7 +299,7 @@
     pintarCartaoHiit();
   }
 
-  function fullEcranCartaoHiit() {
+  function fullEcranHiit() {
     const cartao = localizarCartaoHiit();
     if (!cartao) return;
     if (!document.fullscreenElement && typeof cartao.requestFullscreen === "function") {
@@ -325,34 +309,51 @@
     }
   }
 
-  function selecionarPreset(preset, cartao) {
+  function escolherPreset(preset, cartao) {
     presetForcado = preset;
-    presetBloqueioAteMs = Date.now() + 1500;
+    presetBloqueioAteMs = Date.now() + 1600;
     hiitAtivo = false;
-    if (hiitLoopId) {
-      clearInterval(hiitLoopId);
-      hiitLoopId = null;
-    }
     hiitTrabalho = true;
     hiitRound = 1;
     hiitDuracaoSeg = preset.treino;
     hiitRestanteSeg = preset.treino;
     aplicarPresetNosInputs(cartao, preset);
     pintarCartaoHiit();
+  }
 
-    // Reforça os inputs nos instantes seguintes caso algum script nativo tente repor CrossHitBox Tae
-    [120, 350, 700, 1100].forEach((ms) => {
-      setTimeout(() => {
-        const c = localizarCartaoHiit();
-        if (c && presetForcado) {
-          aplicarPresetNosInputs(c, presetForcado);
-          if (!hiitAtivo) {
-            hiitRestanteSeg = presetForcado.treino;
-            pintarCartaoHiit();
+  // =========================================================================
+  // 3. CRONÓMETRO DE SESSÃO (00:00 -> 00:01...) INDEPENDENTE DO HIIT/TABATA
+  // =========================================================================
+  let sessaoAtiva = false;
+  let sessaoSegAcumulados = 0;
+  let sessaoInicioMs = 0;
+
+  function localizarBlocoSessao() {
+    return (
+      Array.from(document.querySelectorAll("section, div")).find((el) => {
+        const txt = el.innerText || "";
+        return txt.includes("CRONÓMETRO DE SESSÃO") && el.querySelectorAll("button").length >= 1;
+      }) || null
+    );
+  }
+
+  function atualizarTickSessao() {
+    try {
+      const bloco = localizarBlocoSessao();
+      if (!bloco) return;
+      const totalSeg = sessaoAtiva
+        ? sessaoSegAcumulados + Math.floor((Date.now() - sessaoInicioMs) / 1000)
+        : sessaoSegAcumulados;
+      const mmss = fmt(totalSeg);
+
+      bloco.querySelectorAll("div, span, p, strong").forEach((el) => {
+        if (el.children.length === 0 && /^\d{1,2}:\d{2}$/.test((el.textContent || "").trim())) {
+          if ((el.textContent || "").trim() !== mmss) {
+            el.textContent = mmss;
           }
         }
-      }, ms);
-    });
+      });
+    } catch {}
   }
 
   document.addEventListener(
@@ -360,42 +361,57 @@
     (ev) => {
       const btn = ev.target.closest("button");
       if (!btn) return;
-      const cartao = localizarCartaoHiit();
-      if (!cartao || !cartao.contains(btn)) return;
-
       const label = (btn.textContent || "").trim().toLowerCase();
-      if (label === "iniciar") {
-        iniciarCartaoHiit();
-      } else if (label === "pausar") {
-        pausarCartaoHiit();
-      } else if (label === "zerar") {
-        zerarCartaoHiit();
-      } else if (label.includes("full")) {
-        fullEcranCartaoHiit();
-      } else if (label.includes("tabata 20/10")) {
-        selecionarPreset({ treino: 20, descanso: 10, rounds: 8, rotulo: "Tabata 20/10" }, cartao);
-      } else if (label.includes("crosshitbox 40/20")) {
-        selecionarPreset({ treino: 40, descanso: 20, rounds: 8, rotulo: "CrossHitBox 40/20" }, cartao);
-      } else if (label.includes("boxe 3m/1m")) {
-        selecionarPreset({ treino: 180, descanso: 60, rounds: 5, rotulo: "Boxe 3m/1m" }, cartao);
+
+      const cartaoHiit = localizarCartaoHiit();
+      if (cartaoHiit && cartaoHiit.contains(btn)) {
+        if (label === "iniciar") iniciarHiit();
+        else if (label === "pausar") pausarHiit();
+        else if (label === "zerar") zerarHiit();
+        else if (label.includes("full")) fullEcranHiit();
+        else if (label.includes("tabata 20/10")) escolherPreset({ treino: 20, descanso: 10, rounds: 8 }, cartaoHiit);
+        else if (label.includes("crosshitbox 40/20")) escolherPreset({ treino: 40, descanso: 20, rounds: 8 }, cartaoHiit);
+        else if (label.includes("boxe 3m/1m")) escolherPreset({ treino: 180, descanso: 60, rounds: 5 }, cartaoHiit);
+        return;
+      }
+
+      const blocoSessao = localizarBlocoSessao();
+      if (blocoSessao && blocoSessao.contains(btn)) {
+        if (label === "iniciar") {
+          if (!sessaoAtiva) {
+            sessaoInicioMs = Date.now();
+            sessaoAtiva = true;
+          } else {
+            sessaoSegAcumulados += Math.floor((Date.now() - sessaoInicioMs) / 1000);
+            sessaoAtiva = false;
+          }
+          atualizarTickSessao();
+        } else if (label === "zerar") {
+          sessaoAtiva = false;
+          sessaoSegAcumulados = 0;
+          atualizarTickSessao();
+        }
       }
     },
     true
   );
 
-  function inicializarCronometro() {
+  if (window.__chbLoopGlobalCronometros) {
+    clearInterval(window.__chbLoopGlobalCronometros);
+  }
+  window.__chbLoopGlobalCronometros = setInterval(() => {
+    atualizarTickHiit();
+    atualizarTickSessao();
+  }, 150);
+
+  setTimeout(() => {
     const cartao = localizarCartaoHiit();
     if (cartao && !hiitAtivo) {
       const cfg = lerValoresCartaoHiit(cartao);
       hiitDuracaoSeg = cfg.treino;
       hiitRestanteSeg = cfg.treino;
-      pintarCartaoHiit();
     }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => setTimeout(inicializarCronometro, 250));
-  } else {
-    setTimeout(inicializarCronometro, 250);
-  }
+    atualizarTickHiit();
+    atualizarTickSessao();
+  }, 300);
 })();
