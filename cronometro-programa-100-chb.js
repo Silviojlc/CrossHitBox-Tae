@@ -1,154 +1,153 @@
 (function () {
-  if (window.__chbCronometroPrograma100) return;
-  window.__chbCronometroPrograma100 = true;
+  if (window.__chbCronometroUnicoBlindado) return;
+  window.__chbCronometroUnicoBlindado = true;
 
-  let rodando = false;
-  let inicioMs = 0;
-  let duracaoSeg = 40;
-  let restanteSeg = 40;
+  let emExecucao = false;
+  let timestampInicioFase = 0;
+  let duracaoFaseSeg = 40;
+  let segundosRestantes = 40;
   let roundAtual = 1;
   let emTrabalho = true;
-  let intervaloSync = null;
+  let loopId = null;
 
-  function beepCurto(freq = 880, durMs = 130) {
+  function beep() {
     try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.value = 0.08;
+      osc.frequency.value = 880;
+      gain.gain.value = 0.06;
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
       setTimeout(() => {
-        osc.stop();
-        ctx.close().catch(() => {});
-      }, durMs);
+        try {
+          osc.stop();
+          ctx.close().catch(() => {});
+        } catch {}
+      }, 120);
     } catch {}
   }
 
-  function fmtMMSS(totalSeg) {
-    const s = Math.max(0, Math.floor(Number(totalSeg) || 0));
-    const mm = String(Math.floor(s / 60)).padStart(2, "0");
-    const ss = String(s % 60).padStart(2, "0");
-    return `${mm}:${ss}`;
+  function fmt(s) {
+    const n = Math.max(0, Math.floor(Number(s) || 0));
+    const m = String(Math.floor(n / 60)).padStart(2, "0");
+    const seg = String(n % 60).padStart(2, "0");
+    return `${m}:${seg}`;
   }
 
-  function getTreinoSeg() {
-    const el = document.getElementById("chbProgInpTreino");
+  function lerTreino() {
+    const el = document.getElementById("chbUnicoTreino");
     const v = el ? parseInt(el.value, 10) : 40;
     return Number.isFinite(v) && v > 0 ? v : 40;
   }
 
-  function getDescansoSeg() {
-    const el = document.getElementById("chbProgInpDescanso");
+  function lerDescanso() {
+    const el = document.getElementById("chbUnicoDescanso");
     const v = el ? parseInt(el.value, 10) : 20;
     return Number.isFinite(v) && v > 0 ? v : 20;
   }
 
-  function getRoundsTotal() {
-    const el = document.getElementById("chbProgInpRounds");
+  function lerRounds() {
+    const el = document.getElementById("chbUnicoRounds");
     const v = el ? parseInt(el.value, 10) : 8;
     return Number.isFinite(v) && v > 0 ? v : 8;
   }
 
-  function renderizarVisor() {
-    const relEl = document.getElementById("chbProgCronRelogio");
-    const stEl = document.getElementById("chbProgCronStatus");
-    if (relEl) relEl.textContent = fmtMMSS(restanteSeg);
-    if (stEl) {
-      const estado = rodando ? "A CONTAR" : "PAUSADO";
-      const fase = emTrabalho ? "TRABALHO" : "DESCANSO";
-      stEl.textContent = `${estado} • ${fase} • Round ${roundAtual} de ${getRoundsTotal()}`;
-    }
+  function atualizarEcra() {
+    try {
+      const rel = document.getElementById("chbUnicoRelogio");
+      const st = document.getElementById("chbUnicoStatus");
+      if (rel) rel.textContent = fmt(segundosRestantes);
+      if (st) {
+        const estadoTxt = emExecucao ? "A CONTAR" : "PAUSADO";
+        const faseTxt = emTrabalho ? "TRABALHO" : "DESCANSO";
+        st.textContent = `${estadoTxt} • ${faseTxt} • ROUND ${roundAtual} DE ${lerRounds()}`;
+      }
+    } catch {}
   }
 
-  function avancarPasso() {
-    if (!rodando) {
-      renderizarVisor();
-      return;
-    }
-    const passado = Math.floor((Date.now() - inicioMs) / 1000);
-    const novoRestante = duracaoSeg - passado;
+  function passo() {
+    try {
+      if (!emExecucao) {
+        atualizarEcra();
+        return;
+      }
+      const decorrido = Math.floor((Date.now() - timestampInicioFase) / 1000);
+      const restante = duracaoFaseSeg - decorrido;
 
-    if (novoRestante > 0) {
-      restanteSeg = novoRestante;
-      renderizarVisor();
-      return;
-    }
+      if (restante > 0) {
+        segundosRestantes = restante;
+        atualizarEcra();
+        return;
+      }
 
-    beepCurto(emTrabalho ? 660 : 990, 160);
-    if (emTrabalho) {
-      emTrabalho = false;
-      duracaoSeg = getDescansoSeg();
-      restanteSeg = duracaoSeg;
-      inicioMs = Date.now();
-    } else {
-      const total = getRoundsTotal();
-      if (roundAtual < total) {
-        roundAtual += 1;
-        emTrabalho = true;
-        duracaoSeg = getTreinoSeg();
-        restanteSeg = duracaoSeg;
-        inicioMs = Date.now();
+      beep();
+      if (emTrabalho) {
+        emTrabalho = false;
+        duracaoFaseSeg = lerDescanso();
+        segundosRestantes = duracaoFaseSeg;
+        timestampInicioFase = Date.now();
       } else {
-        rodando = false;
-        restanteSeg = 0;
-        if (intervaloSync) {
-          clearInterval(intervaloSync);
-          intervaloSync = null;
+        const total = lerRounds();
+        if (roundAtual < total) {
+          roundAtual += 1;
+          emTrabalho = true;
+          duracaoFaseSeg = lerTreino();
+          segundosRestantes = duracaoFaseSeg;
+          timestampInicioFase = Date.now();
+        } else {
+          emExecucao = false;
+          segundosRestantes = 0;
         }
       }
-    }
-    renderizarVisor();
+      atualizarEcra();
+    } catch {}
   }
 
-  window.chbProgCronIniciar = function () {
-    beepCurto(880, 120);
-    if (!rodando) {
-      const segPartida = restanteSeg > 0 ? restanteSeg : getTreinoSeg();
-      duracaoSeg = segPartida;
-      restanteSeg = segPartida;
-      inicioMs = Date.now();
-      rodando = true;
-    }
-    renderizarVisor();
-    if (intervaloSync) clearInterval(intervaloSync);
-    intervaloSync = setInterval(avancarPasso, 120);
-    requestAnimationFrame(avancarPasso);
+  window.chbUnicoIniciar = function () {
+    beep();
+    const base = segundosRestantes > 0 ? segundosRestantes : lerTreino();
+    duracaoFaseSeg = base;
+    segundosRestantes = base;
+    timestampInicioFase = Date.now();
+    emExecucao = true;
+    atualizarEcra();
+    if (loopId) clearInterval(loopId);
+    loopId = setInterval(passo, 150);
   };
 
-  window.chbProgCronPausar = function () {
-    if (rodando) {
-      avancarPasso();
-      rodando = false;
+  window.chbUnicoPausar = function () {
+    if (emExecucao) {
+      passo();
+      emExecucao = false;
     }
-    if (intervaloSync) {
-      clearInterval(intervaloSync);
-      intervaloSync = null;
+    if (loopId) {
+      clearInterval(loopId);
+      loopId = null;
     }
-    renderizarVisor();
+    atualizarEcra();
   };
 
-  window.chbProgCronZerar = function () {
-    rodando = false;
-    if (intervaloSync) {
-      clearInterval(intervaloSync);
-      intervaloSync = null;
+  window.chbUnicoZerar = function () {
+    emExecucao = false;
+    if (loopId) {
+      clearInterval(loopId);
+      loopId = null;
     }
     emTrabalho = true;
     roundAtual = 1;
-    duracaoSeg = getTreinoSeg();
-    restanteSeg = duracaoSeg;
-    inicioMs = Date.now();
-    renderizarVisor();
+    duracaoFaseSeg = lerTreino();
+    segundosRestantes = duracaoFaseSeg;
+    timestampInicioFase = Date.now();
+    atualizarEcra();
   };
 
-  window.chbProgCronFullEcra = function () {
-    const box = document.getElementById("chbProgramaCronometro100Box");
+  window.chbUnicoFullEcra = function () {
+    const box = document.getElementById("chbCronometroUnicoBlindado");
     if (!box) return;
     if (!document.fullscreenElement && typeof box.requestFullscreen === "function") {
       box.requestFullscreen().catch(() => {});
@@ -157,51 +156,61 @@
     }
   };
 
-  function montar() {
-    if (document.getElementById("chbProgramaCronometro100Box")) return;
+  function removerDuplicadosAntigos() {
+    ["chbCronometroDefinitivoBox", "chbProgramaCronometro100Box", "chbCronometroFuncionalBox"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
+  }
+
+  function montarUnico() {
+    removerDuplicadosAntigos();
+    if (document.getElementById("chbCronometroUnicoBlindado")) return;
+
     const sec = document.createElement("section");
-    sec.id = "chbProgramaCronometro100Box";
+    sec.id = "chbCronometroUnicoBlindado";
     sec.className = "max-w-6xl mx-auto my-4 px-3 sm:px-6";
     sec.innerHTML = `
       <div class="bg-slate-900/95 border border-emerald-500/50 rounded-2xl p-4 space-y-3 text-xs">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div id="chbProgCronStatus" class="text-[11px] font-extrabold uppercase text-emerald-400">PAUSADO • TRABALHO • Round 1 de 8</div>
-            <div id="chbProgCronRelogio" class="text-4xl font-mono font-black text-white mt-0.5">00:40</div>
+            <div id="chbUnicoStatus" class="text-[11px] font-extrabold uppercase text-emerald-400">PAUSADO • TRABALHO • ROUND 1 DE 8</div>
+            <div id="chbUnicoRelogio" class="text-4xl font-mono font-black text-white mt-0.5">00:40</div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button type="button" onclick="chbProgCronIniciar()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black">Iniciar</button>
-            <button type="button" onclick="chbProgCronPausar()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">Pausar</button>
-            <button type="button" onclick="chbProgCronZerar()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold">Zerar</button>
-            <button type="button" onclick="chbProgCronFullEcra()" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold">Full Ecrã</button>
+            <button type="button" onclick="chbUnicoIniciar()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black">Iniciar</button>
+            <button type="button" onclick="chbUnicoPausar()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black">Pausar</button>
+            <button type="button" onclick="chbUnicoZerar()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold">Zerar</button>
+            <button type="button" onclick="chbUnicoFullEcra()" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold">Full Ecrã</button>
           </div>
         </div>
         <div class="grid grid-cols-3 gap-2 pt-1">
           <label class="bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-300">
             <span class="block text-[10px] text-slate-400">Treino (s)</span>
-            <input id="chbProgInpTreino" type="number" min="1" max="600" value="40" onchange="chbProgCronZerar()" class="w-full bg-transparent text-white font-bold outline-none">
+            <input id="chbUnicoTreino" type="number" min="1" max="600" value="40" onchange="chbUnicoZerar()" class="w-full bg-transparent text-white font-bold outline-none">
           </label>
           <label class="bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-300">
             <span class="block text-[10px] text-slate-400">Descanso (s)</span>
-            <input id="chbProgInpDescanso" type="number" min="1" max="600" value="20" class="w-full bg-transparent text-white font-bold outline-none">
+            <input id="chbUnicoDescanso" type="number" min="1" max="600" value="20" class="w-full bg-transparent text-white font-bold outline-none">
           </label>
           <label class="bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-300">
             <span class="block text-[10px] text-slate-400">Rounds</span>
-            <input id="chbProgInpRounds" type="number" min="1" max="99" value="8" onchange="renderizarVisor()" class="w-full bg-transparent text-white font-bold outline-none">
+            <input id="chbUnicoRounds" type="number" min="1" max="99" value="8" onchange="atualizarEcra()" class="w-full bg-transparent text-white font-bold outline-none">
           </label>
         </div>
       </div>
     `;
+
     const mainEl = document.querySelector("main") || document.body;
     mainEl.insertBefore(sec, mainEl.firstChild);
-    restanteSeg = getTreinoSeg();
-    duracaoSeg = restanteSeg;
-    renderizarVisor();
+    segundosRestantes = lerTreino();
+    duracaoFaseSeg = segundosRestantes;
+    atualizarEcra();
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => setTimeout(montar, 200));
+    document.addEventListener("DOMContentLoaded", () => setTimeout(montarUnico, 250));
   } else {
-    setTimeout(montar, 200);
+    setTimeout(montarUnico, 250);
   }
 })();
