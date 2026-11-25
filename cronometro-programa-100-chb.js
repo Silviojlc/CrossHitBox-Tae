@@ -1,14 +1,15 @@
 (function () {
-  if (window.__chbCronometroUnicoPrincipal) return;
-  window.__chbCronometroUnicoPrincipal = true;
+  if (window.__chbCronometroCombateTotal) return;
+  window.__chbCronometroCombateTotal = true;
 
   let ativo = false;
-  let inicioFaseMs = 0;
+  let inicioMs = 0;
   let duracaoSeg = 40;
   let restanteSeg = 40;
   let roundAtual = 1;
   let faseTrabalho = true;
-  let timerId = null;
+  let timerRapido = null;
+  let rafId = null;
 
   function beep(freq = 880, ms = 120) {
     try {
@@ -57,11 +58,18 @@
     return Number.isFinite(v) && v > 0 ? v : 8;
   }
 
-  function pintar() {
+  function pintarForcado() {
     try {
       const rel = document.getElementById("chbUnicoRelogio");
       const st = document.getElementById("chbUnicoStatus");
-      if (rel) rel.textContent = fmt(restanteSeg);
+      const textoRel = fmt(restanteSeg);
+      if (rel) {
+        if (rel.firstChild && rel.firstChild.nodeType === Node.TEXT_NODE) {
+          rel.firstChild.nodeValue = textoRel;
+        } else {
+          rel.textContent = textoRel;
+        }
+      }
       if (st) {
         const estado = ativo ? "A CONTAR" : "PAUSADO";
         const fase = faseTrabalho ? "TRABALHO" : "DESCANSO";
@@ -70,80 +78,90 @@
     } catch {}
   }
 
-  function tick() {
+  function cicloContagem() {
     try {
       if (!ativo) {
-        pintar();
+        pintarForcado();
         return;
       }
-      const decorrido = Math.floor((Date.now() - inicioFaseMs) / 1000);
-      const restante = duracaoSeg - decorrido;
+      const decorrido = Math.floor((Date.now() - inicioMs) / 1000);
+      const novoRestante = duracaoSeg - decorrido;
 
-      if (restante > 0) {
-        restanteSeg = restante;
-        pintar();
-        return;
-      }
-
-      beep(faseTrabalho ? 660 : 990, 150);
-      if (faseTrabalho) {
-        faseTrabalho = false;
-        duracaoSeg = descansoConfig();
-        restanteSeg = duracaoSeg;
-        inicioFaseMs = Date.now();
+      if (novoRestante > 0) {
+        restanteSeg = novoRestante;
+        pintarForcado();
       } else {
-        const total = roundsConfig();
-        if (roundAtual < total) {
-          roundAtual += 1;
-          faseTrabalho = true;
-          duracaoSeg = treinoConfig();
+        beep(faseTrabalho ? 660 : 990, 150);
+        if (faseTrabalho) {
+          faseTrabalho = false;
+          duracaoSeg = descansoConfig();
           restanteSeg = duracaoSeg;
-          inicioFaseMs = Date.now();
+          inicioMs = Date.now();
         } else {
-          ativo = false;
-          restanteSeg = 0;
+          const total = roundsConfig();
+          if (roundAtual < total) {
+            roundAtual += 1;
+            faseTrabalho = true;
+            duracaoSeg = treinoConfig();
+            restanteSeg = duracaoSeg;
+            inicioMs = Date.now();
+          } else {
+            ativo = false;
+            restanteSeg = 0;
+            pararLoops();
+          }
         }
+        pintarForcado();
       }
-      pintar();
+
+      if (ativo) {
+        rafId = requestAnimationFrame(cicloContagem);
+      }
     } catch {}
+  }
+
+  function pararLoops() {
+    if (timerRapido) {
+      clearInterval(timerRapido);
+      timerRapido = null;
+    }
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
   }
 
   window.chbUnicoIniciar = function () {
     beep(880, 120);
+    pararLoops();
     const base = restanteSeg > 0 ? restanteSeg : treinoConfig();
     duracaoSeg = base;
     restanteSeg = base;
-    inicioFaseMs = Date.now();
+    inicioMs = Date.now();
     ativo = true;
-    pintar();
-    if (timerId) clearInterval(timerId);
-    timerId = setInterval(tick, 150);
+    pintarForcado();
+    timerRapido = setInterval(cicloContagem, 100);
+    rafId = requestAnimationFrame(cicloContagem);
   };
 
   window.chbUnicoPausar = function () {
     if (ativo) {
-      tick();
+      cicloContagem();
       ativo = false;
     }
-    if (timerId) {
-      clearInterval(timerId);
-      timerId = null;
-    }
-    pintar();
+    pararLoops();
+    pintarForcado();
   };
 
   window.chbUnicoZerar = function () {
     ativo = false;
-    if (timerId) {
-      clearInterval(timerId);
-      timerId = null;
-    }
+    pararLoops();
     faseTrabalho = true;
     roundAtual = 1;
     duracaoSeg = treinoConfig();
     restanteSeg = duracaoSeg;
-    inicioFaseMs = Date.now();
-    pintar();
+    inicioMs = Date.now();
+    pintarForcado();
   };
 
   window.chbUnicoFullEcra = function () {
@@ -175,7 +193,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div id="chbUnicoStatus" class="text-[11px] font-extrabold uppercase text-emerald-400">PAUSADO • TRABALHO • ROUND 1 DE 8</div>
-            <div id="chbUnicoRelogio" class="text-4xl font-mono font-black text-white mt-0.5">00:40</div>
+            <div id="chbUnicoRelogio" data-chb-relogio-real="1" class="text-4xl font-mono font-black text-white mt-0.5">00:40</div>
           </div>
           <div class="flex flex-wrap gap-2">
             <button type="button" onclick="chbUnicoIniciar()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black">Iniciar</button>
@@ -195,7 +213,7 @@
           </label>
           <label class="bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-300">
             <span class="block text-[10px] text-slate-400">Rounds</span>
-            <input id="chbUnicoRounds" type="number" min="1" max="99" value="8" onchange="pintar()" class="w-full bg-transparent text-white font-bold outline-none">
+            <input id="chbUnicoRounds" type="number" min="1" max="99" value="8" onchange="pintarForcado()" class="w-full bg-transparent text-white font-bold outline-none">
           </label>
         </div>
       </div>
@@ -205,7 +223,7 @@
     mainEl.insertBefore(sec, mainEl.firstChild);
     restanteSeg = treinoConfig();
     duracaoSeg = restanteSeg;
-    pintar();
+    pintarForcado();
   }
 
   if (document.readyState === "loading") {
