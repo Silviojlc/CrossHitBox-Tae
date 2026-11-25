@@ -1,24 +1,24 @@
 (function () {
-  if (window.__chbCronometroUnicoBlindado) return;
-  window.__chbCronometroUnicoBlindado = true;
+  if (window.__chbCronometroUnicoPrincipal) return;
+  window.__chbCronometroUnicoPrincipal = true;
 
-  let emExecucao = false;
-  let timestampInicioFase = 0;
-  let duracaoFaseSeg = 40;
-  let segundosRestantes = 40;
+  let ativo = false;
+  let inicioFaseMs = 0;
+  let duracaoSeg = 40;
+  let restanteSeg = 40;
   let roundAtual = 1;
-  let emTrabalho = true;
-  let loopId = null;
+  let faseTrabalho = true;
+  let timerId = null;
 
-  function beep() {
+  function beep(freq = 880, ms = 120) {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
-      osc.frequency.value = 880;
+      osc.frequency.value = freq;
       gain.gain.value = 0.06;
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -28,7 +28,7 @@
           osc.stop();
           ctx.close().catch(() => {});
         } catch {}
-      }, 120);
+      }, ms);
     } catch {}
   }
 
@@ -39,111 +39,111 @@
     return `${m}:${seg}`;
   }
 
-  function lerTreino() {
+  function treinoConfig() {
     const el = document.getElementById("chbUnicoTreino");
     const v = el ? parseInt(el.value, 10) : 40;
     return Number.isFinite(v) && v > 0 ? v : 40;
   }
 
-  function lerDescanso() {
+  function descansoConfig() {
     const el = document.getElementById("chbUnicoDescanso");
     const v = el ? parseInt(el.value, 10) : 20;
     return Number.isFinite(v) && v > 0 ? v : 20;
   }
 
-  function lerRounds() {
+  function roundsConfig() {
     const el = document.getElementById("chbUnicoRounds");
     const v = el ? parseInt(el.value, 10) : 8;
     return Number.isFinite(v) && v > 0 ? v : 8;
   }
 
-  function atualizarEcra() {
+  function pintar() {
     try {
       const rel = document.getElementById("chbUnicoRelogio");
       const st = document.getElementById("chbUnicoStatus");
-      if (rel) rel.textContent = fmt(segundosRestantes);
+      if (rel) rel.textContent = fmt(restanteSeg);
       if (st) {
-        const estadoTxt = emExecucao ? "A CONTAR" : "PAUSADO";
-        const faseTxt = emTrabalho ? "TRABALHO" : "DESCANSO";
-        st.textContent = `${estadoTxt} • ${faseTxt} • ROUND ${roundAtual} DE ${lerRounds()}`;
+        const estado = ativo ? "A CONTAR" : "PAUSADO";
+        const fase = faseTrabalho ? "TRABALHO" : "DESCANSO";
+        st.textContent = `${estado} • ${fase} • ROUND ${roundAtual} DE ${roundsConfig()}`;
       }
     } catch {}
   }
 
-  function passo() {
+  function tick() {
     try {
-      if (!emExecucao) {
-        atualizarEcra();
+      if (!ativo) {
+        pintar();
         return;
       }
-      const decorrido = Math.floor((Date.now() - timestampInicioFase) / 1000);
-      const restante = duracaoFaseSeg - decorrido;
+      const decorrido = Math.floor((Date.now() - inicioFaseMs) / 1000);
+      const restante = duracaoSeg - decorrido;
 
       if (restante > 0) {
-        segundosRestantes = restante;
-        atualizarEcra();
+        restanteSeg = restante;
+        pintar();
         return;
       }
 
-      beep();
-      if (emTrabalho) {
-        emTrabalho = false;
-        duracaoFaseSeg = lerDescanso();
-        segundosRestantes = duracaoFaseSeg;
-        timestampInicioFase = Date.now();
+      beep(faseTrabalho ? 660 : 990, 150);
+      if (faseTrabalho) {
+        faseTrabalho = false;
+        duracaoSeg = descansoConfig();
+        restanteSeg = duracaoSeg;
+        inicioFaseMs = Date.now();
       } else {
-        const total = lerRounds();
+        const total = roundsConfig();
         if (roundAtual < total) {
           roundAtual += 1;
-          emTrabalho = true;
-          duracaoFaseSeg = lerTreino();
-          segundosRestantes = duracaoFaseSeg;
-          timestampInicioFase = Date.now();
+          faseTrabalho = true;
+          duracaoSeg = treinoConfig();
+          restanteSeg = duracaoSeg;
+          inicioFaseMs = Date.now();
         } else {
-          emExecucao = false;
-          segundosRestantes = 0;
+          ativo = false;
+          restanteSeg = 0;
         }
       }
-      atualizarEcra();
+      pintar();
     } catch {}
   }
 
   window.chbUnicoIniciar = function () {
-    beep();
-    const base = segundosRestantes > 0 ? segundosRestantes : lerTreino();
-    duracaoFaseSeg = base;
-    segundosRestantes = base;
-    timestampInicioFase = Date.now();
-    emExecucao = true;
-    atualizarEcra();
-    if (loopId) clearInterval(loopId);
-    loopId = setInterval(passo, 150);
+    beep(880, 120);
+    const base = restanteSeg > 0 ? restanteSeg : treinoConfig();
+    duracaoSeg = base;
+    restanteSeg = base;
+    inicioFaseMs = Date.now();
+    ativo = true;
+    pintar();
+    if (timerId) clearInterval(timerId);
+    timerId = setInterval(tick, 150);
   };
 
   window.chbUnicoPausar = function () {
-    if (emExecucao) {
-      passo();
-      emExecucao = false;
+    if (ativo) {
+      tick();
+      ativo = false;
     }
-    if (loopId) {
-      clearInterval(loopId);
-      loopId = null;
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
     }
-    atualizarEcra();
+    pintar();
   };
 
   window.chbUnicoZerar = function () {
-    emExecucao = false;
-    if (loopId) {
-      clearInterval(loopId);
-      loopId = null;
+    ativo = false;
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
     }
-    emTrabalho = true;
+    faseTrabalho = true;
     roundAtual = 1;
-    duracaoFaseSeg = lerTreino();
-    segundosRestantes = duracaoFaseSeg;
-    timestampInicioFase = Date.now();
-    atualizarEcra();
+    duracaoSeg = treinoConfig();
+    restanteSeg = duracaoSeg;
+    inicioFaseMs = Date.now();
+    pintar();
   };
 
   window.chbUnicoFullEcra = function () {
@@ -156,7 +156,7 @@
     }
   };
 
-  function removerDuplicadosAntigos() {
+  function removerDuplicados() {
     ["chbCronometroDefinitivoBox", "chbProgramaCronometro100Box", "chbCronometroFuncionalBox"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.remove();
@@ -164,7 +164,7 @@
   }
 
   function montarUnico() {
-    removerDuplicadosAntigos();
+    removerDuplicados();
     if (document.getElementById("chbCronometroUnicoBlindado")) return;
 
     const sec = document.createElement("section");
@@ -195,7 +195,7 @@
           </label>
           <label class="bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-300">
             <span class="block text-[10px] text-slate-400">Rounds</span>
-            <input id="chbUnicoRounds" type="number" min="1" max="99" value="8" onchange="atualizarEcra()" class="w-full bg-transparent text-white font-bold outline-none">
+            <input id="chbUnicoRounds" type="number" min="1" max="99" value="8" onchange="pintar()" class="w-full bg-transparent text-white font-bold outline-none">
           </label>
         </div>
       </div>
@@ -203,9 +203,9 @@
 
     const mainEl = document.querySelector("main") || document.body;
     mainEl.insertBefore(sec, mainEl.firstChild);
-    segundosRestantes = lerTreino();
-    duracaoFaseSeg = segundosRestantes;
-    atualizarEcra();
+    restanteSeg = treinoConfig();
+    duracaoSeg = restanteSeg;
+    pintar();
   }
 
   if (document.readyState === "loading") {
