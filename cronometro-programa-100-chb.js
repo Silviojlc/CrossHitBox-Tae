@@ -1,14 +1,14 @@
 (function () {
-  window.__chbHiitModuloFixAtivo = true;
+  window.__chbHiitModoTravadoFix = true;
 
+  // Modo padrão inicial: CrossHitBox 40/20 (8 rounds)
+  let modoAtual = { nome: "CrossHitBox 40/20", treino: 40, descanso: 20, rounds: 8 };
   let rodando = false;
   let inicioMs = 0;
-  let duracaoSeg = 40;
-  let restanteSeg = 40;
+  let duracaoSeg = modoAtual.treino;
+  let restanteSeg = modoAtual.treino;
   let roundAtual = 1;
-  let trabalho = true;
-  let presetTravaAte = 0;
-  let presetAtivo = null;
+  let emTrabalho = true;
 
   function beep(freq = 880, ms = 110) {
     try {
@@ -49,45 +49,18 @@
     );
   }
 
-  function aplicarInputs(mod, cfg) {
-    if (!mod || !cfg) return;
+  function sincronizarInputsComModo(mod) {
+    if (!mod) return;
     const inps = Array.from(mod.querySelectorAll("input[type='number'], input"));
-    if (inps[0] && String(inps[0].value) !== String(cfg.treino)) {
-      inps[0].value = String(cfg.treino);
-      inps[0].dispatchEvent(new Event("input", { bubbles: true }));
-      inps[0].dispatchEvent(new Event("change", { bubbles: true }));
+    if (inps[0] && String(inps[0].value) !== String(modoAtual.treino)) {
+      inps[0].value = String(modoAtual.treino);
     }
-    if (inps[1] && String(inps[1].value) !== String(cfg.descanso)) {
-      inps[1].value = String(cfg.descanso);
-      inps[1].dispatchEvent(new Event("input", { bubbles: true }));
-      inps[1].dispatchEvent(new Event("change", { bubbles: true }));
+    if (inps[1] && String(inps[1].value) !== String(modoAtual.descanso)) {
+      inps[1].value = String(modoAtual.descanso);
     }
-    if (inps[2] && cfg.rounds && String(inps[2].value) !== String(cfg.rounds)) {
-      inps[2].value = String(cfg.rounds);
-      inps[2].dispatchEvent(new Event("input", { bubbles: true }));
-      inps[2].dispatchEvent(new Event("change", { bubbles: true }));
+    if (inps[2] && String(inps[2].value) !== String(modoAtual.rounds)) {
+      inps[2].value = String(modoAtual.rounds);
     }
-  }
-
-  function lerConfig(mod) {
-    if (presetAtivo && Date.now() < presetTravaAte) {
-      aplicarInputs(mod, presetAtivo);
-      return {
-        treino: presetAtivo.treino,
-        descanso: presetAtivo.descanso,
-        rounds: presetAtivo.rounds || 8
-      };
-    }
-    let treino = 40;
-    let descanso = 20;
-    let rounds = 8;
-    if (mod) {
-      const inps = Array.from(mod.querySelectorAll("input[type='number'], input"));
-      if (inps[0] && parseInt(inps[0].value, 10) > 0) treino = parseInt(inps[0].value, 10);
-      if (inps[1] && parseInt(inps[1].value, 10) > 0) descanso = parseInt(inps[1].value, 10);
-      if (inps[2] && parseInt(inps[2].value, 10) > 0) rounds = parseInt(inps[2].value, 10);
-    }
-    return { treino, descanso, rounds };
   }
 
   function garantirVisor(mod) {
@@ -100,7 +73,6 @@
         "font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 32px; font-weight: 900; color: #ffffff; letter-spacing: 2px; line-height: 1.1; margin-top: 6px;";
     }
 
-    // Coloca o visor dentro do painel escuro esquerdo (onde ficam TRABALHO e Round 1 de 8)
     const badgeTrabalho = Array.from(mod.querySelectorAll("div, span")).find(
       (el) => el.children.length === 0 && /^(TRABALHO|DESCANSO|PRONTO)$/i.test((el.textContent || "").trim())
     );
@@ -119,7 +91,8 @@
     try {
       if (!mod) mod = getModuloHiit();
       if (!mod) return;
-      const cfg = lerConfig(mod);
+      sincronizarInputsComModo(mod);
+
       const visor = garantirVisor(mod);
       const textoTempo = fmt(restanteSeg);
       if (visor && visor.textContent !== textoTempo) {
@@ -128,9 +101,9 @@
 
       mod.querySelectorAll("div, span, p").forEach((el) => {
         if (el.children.length === 0 && /round\s+\d+/i.test((el.textContent || "").trim())) {
-          const novoRound = `Round ${roundAtual} de ${cfg.rounds}`;
-          if ((el.textContent || "").trim() !== novoRound) {
-            el.textContent = novoRound;
+          const alvoRound = `Round ${roundAtual} de ${modoAtual.rounds}`;
+          if ((el.textContent || "").trim() !== alvoRound) {
+            el.textContent = alvoRound;
           }
         }
       });
@@ -138,46 +111,44 @@
       mod.querySelectorAll("div, span").forEach((el) => {
         if (el.children.length === 0) {
           const t = (el.textContent || "").trim().toUpperCase();
-          const alvo = trabalho ? "TRABALHO" : "DESCANSO";
-          if ((t === "TRABALHO" || t === "DESCANSO" || t === "PRONTO") && t !== alvo) {
-            el.textContent = alvo;
+          const alvoFase = emTrabalho ? "TRABALHO" : "DESCANSO";
+          if ((t === "TRABALHO" || t === "DESCANSO" || t === "PRONTO") && t !== alvoFase) {
+            el.textContent = alvoFase;
           }
         }
       });
     } catch {}
   }
 
-  function tick() {
+  function passoContagem() {
     try {
       const mod = getModuloHiit();
       if (!mod) return;
-      if (presetAtivo && Date.now() < presetTravaAte) {
-        aplicarInputs(mod, presetAtivo);
-      }
+
       if (!rodando) {
         pintar(mod);
         return;
       }
-      const cfg = lerConfig(mod);
-      const passado = Math.floor((Date.now() - inicioMs) / 1000);
-      const rest = duracaoSeg - passado;
 
-      if (rest > 0) {
-        restanteSeg = rest;
+      const decorrido = Math.floor((Date.now() - inicioMs) / 1000);
+      const novoRestante = duracaoSeg - decorrido;
+
+      if (novoRestante > 0) {
+        restanteSeg = novoRestante;
         pintar(mod);
         return;
       }
 
-      beep(trabalho ? 660 : 990, 130);
-      if (trabalho) {
-        trabalho = false;
-        duracaoSeg = cfg.descanso;
+      beep(emTrabalho ? 660 : 990, 130);
+      if (emTrabalho) {
+        emTrabalho = false;
+        duracaoSeg = modoAtual.descanso;
         restanteSeg = duracaoSeg;
         inicioMs = Date.now();
-      } else if (roundAtual < cfg.rounds) {
+      } else if (roundAtual < modoAtual.rounds) {
         roundAtual += 1;
-        trabalho = true;
-        duracaoSeg = cfg.treino;
+        emTrabalho = true;
+        duracaoSeg = modoAtual.treino;
         restanteSeg = duracaoSeg;
         inicioMs = Date.now();
       } else {
@@ -188,39 +159,46 @@
     } catch {}
   }
 
-  function iniciar() {
-    const mod = getModuloHiit();
-    const cfg = lerConfig(mod);
+  function iniciarContagem() {
     beep(880, 110);
-    const base = restanteSeg > 0 ? restanteSeg : cfg.treino;
+    const base = restanteSeg > 0 ? restanteSeg : emTrabalho ? modoAtual.treino : modoAtual.descanso;
     duracaoSeg = base;
     restanteSeg = base;
     inicioMs = Date.now();
     rodando = true;
-    tick();
+    passoContagem();
   }
 
-  function pausar() {
+  function pausarContagem() {
     if (rodando) {
-      tick();
+      passoContagem();
       rodando = false;
     }
     pintar(getModuloHiit());
   }
 
-  function zerar() {
-    const mod = getModuloHiit();
-    const cfg = lerConfig(mod);
+  function zerarContagem() {
     rodando = false;
-    trabalho = true;
+    emTrabalho = true;
     roundAtual = 1;
-    duracaoSeg = cfg.treino;
+    duracaoSeg = modoAtual.treino;
     restanteSeg = duracaoSeg;
     inicioMs = Date.now();
-    pintar(mod);
+    pintar(getModuloHiit());
   }
 
-  function fullEcra() {
+  function aplicarModo(novoModo) {
+    modoAtual = { ...novoModo };
+    rodando = false;
+    emTrabalho = true;
+    roundAtual = 1;
+    duracaoSeg = modoAtual.treino;
+    restanteSeg = modoAtual.treino;
+    inicioMs = Date.now();
+    pintar(getModuloHiit());
+  }
+
+  function alternarFullEcran() {
     const mod = getModuloHiit();
     if (!mod) return;
     if (!document.fullscreenElement && typeof mod.requestFullscreen === "function") {
@@ -230,18 +208,28 @@
     }
   }
 
-  function setPreset(cfg) {
-    const mod = getModuloHiit();
-    presetAtivo = cfg;
-    presetTravaAte = Date.now() + 1800;
-    rodando = false;
-    trabalho = true;
-    roundAtual = 1;
-    duracaoSeg = cfg.treino;
-    restanteSeg = cfg.treino;
-    aplicarInputs(mod, cfg);
-    pintar(mod);
-  }
+  // Permite também alterar manualmente os números dos inputs sem perder o controlo
+  document.addEventListener(
+    "change",
+    (ev) => {
+      const inp = ev.target.closest("input");
+      const mod = getModuloHiit();
+      if (!inp || !mod || !mod.contains(inp)) return;
+      const inps = Array.from(mod.querySelectorAll("input[type='number'], input"));
+      const t = parseInt(inps[0] && inps[0].value, 10);
+      const d = parseInt(inps[1] && inps[1].value, 10);
+      const r = parseInt(inps[2] && inps[2].value, 10);
+      if (t > 0) modoAtual.treino = t;
+      if (d > 0) modoAtual.descanso = d;
+      if (r > 0) modoAtual.rounds = r;
+      if (!rodando) {
+        restanteSeg = emTrabalho ? modoAtual.treino : modoAtual.descanso;
+        duracaoSeg = restanteSeg;
+        pintar(mod);
+      }
+    },
+    true
+  );
 
   document.addEventListener(
     "click",
@@ -252,27 +240,27 @@
       if (!mod || !mod.contains(btn)) return;
 
       const rotulo = (btn.textContent || "").trim().toLowerCase();
-      if (rotulo === "iniciar") iniciar();
-      else if (rotulo === "pausar") pausar();
-      else if (rotulo === "zerar") zerar();
-      else if (rotulo.includes("full")) fullEcra();
-      else if (rotulo.includes("tabata 20/10")) setPreset({ treino: 20, descanso: 10, rounds: 8 });
-      else if (rotulo.includes("crosshitbox 40/20")) setPreset({ treino: 40, descanso: 20, rounds: 8 });
-      else if (rotulo.includes("boxe 3m/1m")) setPreset({ treino: 180, descanso: 60, rounds: 5 });
+      if (rotulo.includes("tabata 20/10")) {
+        aplicarModo({ nome: "Tabata 20/10", treino: 20, descanso: 10, rounds: 8 });
+      } else if (rotulo.includes("crosshitbox 40/20")) {
+        aplicarModo({ nome: "CrossHitBox 40/20", treino: 40, descanso: 20, rounds: 8 });
+      } else if (rotulo.includes("boxe 3m/1m")) {
+        aplicarModo({ nome: "Boxe 3m/1m", treino: 180, descanso: 60, rounds: 5 });
+      } else if (rotulo === "iniciar") {
+        iniciarContagem();
+      } else if (rotulo === "pausar") {
+        pausarContagem();
+      } else if (rotulo === "zerar") {
+        zerarContagem();
+      } else if (rotulo.includes("full")) {
+        alternarFullEcran();
+      }
     },
     true
   );
 
-  if (window.__chbHiitModuloTimer) clearInterval(window.__chbHiitModuloTimer);
-  window.__chbHiitModuloTimer = setInterval(tick, 150);
+  if (window.__chbHiitLoopPrincipal) clearInterval(window.__chbHiitLoopPrincipal);
+  window.__chbHiitLoopPrincipal = setInterval(passoContagem, 100);
 
-  setTimeout(() => {
-    const mod = getModuloHiit();
-    if (mod && !rodando) {
-      const cfg = lerConfig(mod);
-      duracaoSeg = cfg.treino;
-      restanteSeg = cfg.treino;
-      pintar(mod);
-    }
-  }, 300);
+  setTimeout(() => pintar(getModuloHiit()), 250);
 })();
