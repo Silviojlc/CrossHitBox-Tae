@@ -97,15 +97,20 @@
       visor = document.createElement("div");
       visor.id = "chbHiitDisplayReal";
       visor.style.cssText =
-        "font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 32px; font-weight: 900; color: #ffffff; letter-spacing: 2px; margin-top: 4px;";
-      const badgeRound = Array.from(mod.querySelectorAll("div, span, p")).find((el) =>
-        /round\s+\d+/i.test((el.textContent || "").trim())
-      );
-      if (badgeRound && badgeRound.parentElement) {
-        badgeRound.parentElement.appendChild(visor);
-      } else {
-        mod.insertBefore(visor, mod.firstChild);
-      }
+        "font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 32px; font-weight: 900; color: #ffffff; letter-spacing: 2px; line-height: 1.1; margin-top: 6px;";
+    }
+
+    // Coloca o visor dentro do painel escuro esquerdo (onde ficam TRABALHO e Round 1 de 8)
+    const badgeTrabalho = Array.from(mod.querySelectorAll("div, span")).find(
+      (el) => el.children.length === 0 && /^(TRABALHO|DESCANSO|PRONTO)$/i.test((el.textContent || "").trim())
+    );
+    const painelEsquerdo =
+      (badgeTrabalho && badgeTrabalho.closest("div.rounded-xl, div.rounded-2xl")) ||
+      (badgeTrabalho && badgeTrabalho.parentElement && badgeTrabalho.parentElement.parentElement) ||
+      mod;
+
+    if (visor.parentElement !== painelEsquerdo) {
+      painelEsquerdo.appendChild(visor);
     }
     return visor;
   }
@@ -116,18 +121,17 @@
       if (!mod) return;
       const cfg = lerConfig(mod);
       const visor = garantirVisor(mod);
-      if (visor) visor.textContent = fmt(restanteSeg);
-
-      // Também tenta atualizar qualquer texto MM:SS visível no módulo caso exista
-      mod.querySelectorAll("div, span, p, strong").forEach((el) => {
-        if (el.id !== "chbHiitDisplayReal" && el.children.length === 0 && /^\d{1,2}:\d{2}$/.test((el.textContent || "").trim())) {
-          el.textContent = fmt(restanteSeg);
-        }
-      });
+      const textoTempo = fmt(restanteSeg);
+      if (visor && visor.textContent !== textoTempo) {
+        visor.textContent = textoTempo;
+      }
 
       mod.querySelectorAll("div, span, p").forEach((el) => {
         if (el.children.length === 0 && /round\s+\d+/i.test((el.textContent || "").trim())) {
-          el.textContent = `Round ${roundAtual} de ${cfg.rounds}`;
+          const novoRound = `Round ${roundAtual} de ${cfg.rounds}`;
+          if ((el.textContent || "").trim() !== novoRound) {
+            el.textContent = novoRound;
+          }
         }
       });
 
