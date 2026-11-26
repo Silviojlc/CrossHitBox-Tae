@@ -1,3 +1,5 @@
+/* chb-async-wrap */
+(async () => {
 (function () {
   if (document.getElementById("cadastroBlindagemModulo")) return;
 
@@ -663,4 +665,6 @@
       }
     }, 600);
   }
+})();
+
 })();
