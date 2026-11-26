@@ -315,13 +315,15 @@
     pgs.unshift(pg);
     guardarLista(KEY_PAGAMENTOS, pgs);
 
-    try {
-      await fetch("/api/crosshitbox/pagamentos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pg)
-      });
-    } catch {}
+    (async () => {
+      try {
+        await fetch("/api/crosshitbox/pagamentos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pg)
+        });
+      } catch {}
+    })();
 
     const statusEl = document.getElementById("bloqStatusMsg");
     if (statusEl) {
