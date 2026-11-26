@@ -1,5 +1,3 @@
-/* chb-async-wrap */
-(async () => {
 (function () {
   if (document.getElementById("cadastroBlindagemModulo")) return;
 
@@ -234,7 +232,7 @@
         const reader = new FileReader();
         reader.onload = function (e) {
           const img = new Image();
-          img.onload = function () {
+          img.onload = async function () {
             const maxW = 900;
             let w = img.width || maxW;
             let h = img.height || maxW;
@@ -540,7 +538,7 @@
     w.document.close();
   };
 
-  window.chbEnviarReciboWhatsApp = function (reciboNumero, nome, telefone, nif, valor, validade) {
+  window.chbEnviarReciboWhatsApp = async function (reciboNumero, nome, telefone, nif, valor, validade) {
     const tel = limparTelefoneCV(telefone);
     const texto = [
       `RECIBO DE PAGAMENTO — CROSSHITBOX TAE`,
@@ -665,6 +663,4 @@
       }
     }, 600);
   }
-})();
-
 })();
