@@ -1,5 +1,4 @@
 (function () {
-  if (window.__chbMotorCronometroGarantido) return;
   window.__chbMotorCronometroGarantido = true;
 
   let preset = { nome: "CrossHitBox 40/20", treino: 40, descanso: 20, rounds: 8 };
@@ -9,6 +8,8 @@
   let restanteSeg = preset.treino;
   let roundAtual = 1;
   let emTrabalho = true;
+  let timeoutId = null;
+  let rafId = null;
 
   function beep(freq = 880, ms = 110) {
     try {
@@ -52,6 +53,24 @@
     }
   }
 
+  function pararAgendamento() {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  function agendarProximoPasso() {
+    pararAgendamento();
+    if (!rodando) return;
+    timeoutId = setTimeout(passo, 150);
+    rafId = requestAnimationFrame(passo);
+  }
+
   function passo() {
     if (!rodando) {
       atualizarVisor();
@@ -59,9 +78,11 @@
     }
     const decorrido = Math.floor((Date.now() - inicioFaseMs) / 1000);
     const rest = duracaoSeg - decorrido;
+
     if (rest > 0) {
       restanteSeg = rest;
       atualizarVisor();
+      agendarProximoPasso();
       return;
     }
 
@@ -71,22 +92,28 @@
       duracaoSeg = preset.descanso;
       restanteSeg = duracaoSeg;
       inicioFaseMs = Date.now();
+      atualizarVisor();
+      agendarProximoPasso();
     } else if (roundAtual < preset.rounds) {
       roundAtual += 1;
       emTrabalho = true;
       duracaoSeg = preset.treino;
       restanteSeg = duracaoSeg;
       inicioFaseMs = Date.now();
+      atualizarVisor();
+      agendarProximoPasso();
     } else {
       rodando = false;
       restanteSeg = 0;
+      pararAgendamento();
+      atualizarVisor();
     }
-    atualizarVisor();
   }
 
   window.chbGarantidoPreset = function (nome, treino, descanso, rounds) {
     preset = { nome, treino, descanso, rounds };
     rodando = false;
+    pararAgendamento();
     emTrabalho = true;
     roundAtual = 1;
     duracaoSeg = treino;
@@ -122,19 +149,23 @@
     restanteSeg = base;
     inicioFaseMs = Date.now();
     rodando = true;
-    passo();
+    atualizarVisor();
+    agendarProximoPasso();
   };
 
   window.chbGarantidoPausar = function () {
     if (rodando) {
-      passo();
+      const decorrido = Math.floor((Date.now() - inicioFaseMs) / 1000);
+      restanteSeg = Math.max(0, duracaoSeg - decorrido);
       rodando = false;
     }
+    pararAgendamento();
     atualizarVisor();
   };
 
   window.chbGarantidoZerar = function () {
     rodando = false;
+    pararAgendamento();
     emTrabalho = true;
     roundAtual = 1;
     duracaoSeg = preset.treino;
@@ -208,6 +239,4 @@
   } else {
     setTimeout(montar, 200);
   }
-
-  setInterval(passo, 100);
 })();
