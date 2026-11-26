@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+  <html lang="pt">
+<head>
+  <script src="/trava-estabilidade-chb.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Área do Atleta — CrossHitBox Tae</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen p-6">
+  <div class="max-w-5xl mx-auto">
+    <div id="loginBox" class="max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 mt-10 shadow-xl">
+      <h1 class="text-2xl font-bold text-amber-400 text-center">ÁREA DO ATLETA</h1>
+      <p class="text-xs text-slate-400 text-center mt-1">CrossHitBox Tae • Ficha de Treino, Vídeos &amp; Aula Online</p>
+
+      <form id="loginForm" class="space-y-4 mt-6">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">E-mail da Inscrição</label>
+          <input id="loginEmail" type="email" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password de Acesso</label>
+          <input id="loginPass" type="password" required class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white" />
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition">
+          Entrar na Minha Conta
+        </button>
+      </form>
+      <p id="loginErro" class="hidden mt-3 text-sm text-rose-400 text-center"></p>
+      <div class="mt-5 text-center">
+        <a href="/" class="text-xs text-slate-400 hover:text-amber-400 underline">Voltar à Inscrição</a>
+      </div>
+    </div>
+
+    <div id="portalBox" class="hidden space-y-6">
+      <div id="bannerAulaAoVivo" class="hidden flex flex-wrap items-center justify-between gap-4 bg-emerald-950/70 border border-emerald-500/50 rounded-2xl p-4">
+        <div class="flex items-center gap-3">
+          <span class="inline-block w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wider text-emerald-300">Aula a decorrer agora</p>
+            <p id="bannerTitulo" class="text-sm font-semibold text-white"></p>
+          </div>
+        </div>
+        <button onclick="abrirSalaDireta()" class="px-4 py-2 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-sm">
+          Entrar na Aula Agora
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div>
+          <p class="text-xs uppercase text-amber-400 font-semibold">Atleta Autenticado</p>
+          <h2 id="atletaNome" class="text-xl font-bold mt-0.5"></h2>
+          <p id="atletaTurno" class="text-sm text-slate-400"></p>
+        </div>
+        <button onclick="sair()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700">
+          Terminar Sessão
+        </button>
+      </div>
+
+      <!-- Formulário de Avaliação e Perfil do Atleta para o Treinador -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 class="text-lg font-bold text-amber-400">Ficha do Atleta — Experiência de Musculação &amp; Patologias</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Relate a sua experiência de treino, patologias, dores ou limitações para o treinador adaptar o treino com segurança.</p>
+        </div>
+
+        <form id="fichaAtletaForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Nível de Experiência em Musculação</label>
+            <select id="nivelExperiencia" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white">
+              <option value="Iniciante">Iniciante (pouco ou nenhum contacto com musculação)</option>
+              <option value="Intermédio">Intermédio (treino regular com alguma base técnica)</option>
+              <option value="Avançado">Avançado (experiência consolidada em força e condicionamento)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Tempo de Prática / Musculação</label>
+            <input id="tempoMusculacao" type="text" placeholder="Ex.: 6 meses, 2 anos, parado há 1 ano..." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Objetivo Principal</label>
+            <input id="objetivoPrincipal" type="text" placeholder="Ex.: Ganho de massa muscular, perda de peso, resistência, mobilidade..." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Medicação ou Restrições Médicas</label>
+            <input id="medicacaoRestricoes" type="text" placeholder="Ex.: Sem restrições, hipertensão controlada, evita impacto..." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Patologias, Lesões Antigas ou Dores Articulares</label>
+            <textarea id="patologiasLesoes" rows="2" placeholder="Descreva qualquer patologia, lesão na coluna, joelho, ombro, lombar, etc. (ou escreva 'Nenhuma')." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white"></textarea>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Histórico de Treinos e Exercícios que Domina / Prefere</label>
+            <textarea id="historicoTreinos" rows="2" placeholder="Conte como costumava treinar, aparelhos ou exercícios básicos que já executa bem..." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white"></textarea>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Outras Informações Importantes para o Treinador</label>
+            <textarea id="observacoesTreinador" rows="2" placeholder="Ex.: Fadiga ao acordar, falta de sono, preferência por adaptações de baixo impacto..." class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white"></textarea>
+          </div>
+
+          <div class="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
+            <span id="fichaMsg" class="text-xs text-emerald-400"></span>
+            <button type="submit" class="px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+              Guardar Ficha para o Treinador
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-amber-400">Aula Online por Videochamada</h3>
+            <p id="chamadaTitulo" class="text-sm text-slate-300"></p>
+            <p id="chamadaEstadoTexto" class="text-xs text-slate-400 mt-0.5"></p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="seletorSalaTurno" onchange="trocarSalaSelecionada()" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs">
+              <option value="05:00">Sala 05:00 (Madrugada)</option>
+              <option value="18:00">Sala 18:00 (Tarde)</option>
+            </select>
+            <button onclick="alternarSala()" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm">
+              Entrar / Ocultar Sala
+            </button>
+            <a id="linkExternoChamada" href="#" target="_blank" rel="noopener" class="hidden px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm">
+              Abrir em Nova Janela
+            </a>
+          </div>
+        </div>
+        <div id="containerChamada" class="hidden rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video">
+          <iframe id="frameChamada" class="w-full h-full" allow="camera; microphone; fullscreen; display-capture" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-lg font-bold text-amber-400">Vídeos de Aulas Gravadas</h3>
+          <select id="filtroTurno" onchange="renderVideos()" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+            <option value="TODOS">Todos os Turnos</option>
+            <option value="05:00">Turno 05:00 (Madrugada)</option>
+            <option value="18:00">Turno 18:00 (Tarde)</option>
+          </select>
+        </div>
+        <div id="listaVideos" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <h3 class="text-base font-bold text-amber-400">Alterar Password de Acesso</h3>
+        <form id="passForm" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input id="passAtual" type="password" required placeholder="Password atual / temporária" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          <input id="passNova" type="password" required minlength="4" placeholder="Nova password (mín. 4)" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
+          <button type="submit" class="py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold">
+            Atualizar Password
+          </button>
+        </form>
+        <p id="passMsg" class="text-xs text-emerald-400"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let videosCache = [];
+    let todasChamadas = {};
+    let chamadaAtual = null;
+    let atletaAtual = null;
+
+    function aplicarChamada(chamadaObj) {
+      chamadaAtual = chamadaObj || {
+        titulo: 'Aula Ao Vivo — CrossHitBox Tae',
+        sala: 'CrossHitBox-Tae-0500',
+        urlExterna: '',
+        ativa: true
+      };
+
+      document.getElementById('chamadaTitulo').textContent = chamadaAtual.titulo;
+      const ativa = chamadaAtual.ativa !== false;
+      document.getElementById('chamadaEstadoTexto').textContent = ativa
+        ? `Sala disponível: ${chamadaAtual.sala} • Aula ativa para participação conjunta`
+        : `Sala: ${chamadaAtual.sala} • Em espera`;
+
+      const banner = document.getElementById('bannerAulaAoVivo');
+      if (ativa) {
+        document.getElementById('bannerTitulo').textContent = chamadaAtual.titulo;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      const ext = document.getElementById('linkExternoChamada');
+      if (chamadaAtual.urlExterna) {
+        ext.href = chamadaAtual.urlExterna;
+        ext.classList.remove('hidden');
+      } else {
+        ext.classList.add('hidden');
+      }
+    }
+
+    async function carregarFichaAtleta(email) {
+      try {
+        const res = await fetch(`/api/crosshitbox/ficha/${encodeURIComponent(email)}`);
+        const data = await res.json();
+        if (data.success && data.ficha) {
+          const f = data.ficha;
+          document.getElementById('nivelExperiencia').value = f.nivel_experiencia || 'Iniciante';
+          document.getElementById('tempoMusculacao').value = f.tempo_musculacao || '';
+          document.getElementById('objetivoPrincipal').value = f.objetivo_principal || '';
+          document.getElementById('medicacaoRestricoes').value = f.medicacao_restricoes || '';
+          document.getElementById('patologiasLesoes').value = f.patologias_lesoes || '';
+          document.getElementById('historicoTreinos').value = f.historico_treinos || '';
+          document.getElementById('observacoesTreinador').value = f.observacoes_treinador || '';
+          document.getElementById('fichaMsg').textContent = 'Ficha carregada.';
+        }
+      } catch {}
+    }
+
+    document.getElementById('fichaAtletaForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!atletaAtual) return;
+
+      const res = await fetch('/api/crosshitbox/ficha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: atletaAtual.email,
+          nome: atletaAtual.nome,
+          horario: atletaAtual.horario,
+          nivel_experiencia: document.getElementById('nivelExperiencia').value,
+          tempo_musculacao: document.getElementById('tempoMusculacao').value,
+          objetivo_principal: document.getElementById('objetivoPrincipal').value,
+          medicacao_restricoes: document.getElementById('medicacaoRestricoes').value,
+          patologias_lesoes: document.getElementById('patologiasLesoes').value,
+          historico_treinos: document.getElementById('historicoTreinos').value,
+          observacoes_treinador: document.getElementById('observacoesTreinador').value
+        })
+      });
+      const data = await res.json();
+      document.getElementById('fichaMsg').textContent = data.success
+        ? 'Ficha guardada para o treinador.'
+        : (data.error || 'Erro ao guardar ficha.');
+    });
+
+    document.getElementById('passForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!atletaAtual) return;
+      const res = await fetch('/api/crosshitbox/alterar-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: atletaAtual.email,
+          passwordAtual: document.getElementById('passAtual').value,
+          novaPassword: document.getElementById('passNova').value
+        })
+      });
+      const data = await res.json();
+      document.getElementById('passMsg').textContent = data.success
+        ? 'Password atualizada com sucesso.'
+        : (data.error || 'Erro ao atualizar password.');
+      if (data.success) e.target.reset();
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const erroEl = document.getElementById('loginErro');
+      erroEl.classList.add('hidden');
+
+      const res = await fetch('/api/crosshitbox/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('loginEmail').value.trim(),
+          password: document.getElementById('loginPass').value
+        })
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        erroEl.textContent = data.error || 'Falha no login.';
+        erroEl.classList.remove('hidden');
+        return;
+      }
+
+      atletaAtual = data.membro;
+      todasChamadas = data.chamadas || {};
+      videosCache = data.videos || [];
+
+      const turnoChave = (atletaAtual.horario || '').includes('18:00') ? '18:00' : '05:00';
+      document.getElementById('seletorSalaTurno').value = turnoChave;
+
+      document.getElementById('loginBox').classList.add('hidden');
+      document.getElementById('portalBox').classList.remove('hidden');
+      document.getElementById('atletaNome').textContent = atletaAtual.nome;
+      document.getElementById('atletaTurno').textContent = `Turno inscrito: ${atletaAtual.horario} • ${atletaAtual.email}`;
+
+      aplicarChamada(data.chamada || todasChamadas[turnoChave]);
+      await carregarFichaAtleta(atletaAtual.email);
+      renderVideos();
+
+      if ((data.chamada && data.chamada.ativa !== false) || !data.chamada) {
+        abrirSalaDireta();
+      }
+    });
+
+    function trocarSalaSelecionada() {
+      const chave = document.getElementById('seletorSalaTurno').value;
+      if (todasChamadas[chave]) {
+        aplicarChamada(todasChamadas[chave]);
+        const box = document.getElementById('containerChamada');
+        if (!box.classList.contains('hidden')) {
+          abrirSalaDireta();
+        }
+      }
+    }
+
+    function abrirSalaDireta() {
+      const box = document.getElementById('containerChamada');
+      const frame = document.getElementById('frameChamada');
+      const sala = (chamadaAtual && chamadaAtual.sala) || 'CrossHitBox-Tae-0500';
+      const nomeUser = encodeURIComponent((atletaAtual && atletaAtual.nome) || 'Atleta');
+      const destino = (chamadaAtual && chamadaAtual.urlExterna)
+        ? chamadaAtual.urlExterna
+        : `https://meet.jit.si/${sala}#userInfo.displayName="${nomeUser}"`;
+      frame.src = destino;
+      box.classList.remove('hidden');
+    }
+
+    function alternarSala() {
+      const box = document.getElementById('containerChamada');
+      const frame = document.getElementById('frameChamada');
+      const estaOculta = box.classList.contains('hidden');
+
+      if (estaOculta) {
+        abrirSalaDireta();
+      } else {
+        frame.src = '';
+        box.classList.add('hidden');
+      }
+    }
+
+    function renderVideos() {
+      const filtro = document.getElementById('filtroTurno').value;
+      const lista = document.getElementById('listaVideos');
+      lista.innerHTML = '';
+
+      const filtrados = videosCache.filter((v) => {
+        if (filtro === 'TODOS') return true;
+        return (v.turno || '').includes(filtro);
+      });
+
+      if (filtrados.length === 0) {
+        lista.innerHTML = '<p class="text-sm text-slate-400 col-span-2">Sem vídeos gravados para este filtro.</p>';
+        return;
+      }
+
+      for (const v of filtrados) {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col';
+        card.innerHTML = `
+          <div class="aspect-video bg-black">
+            <iframe src="${v.videoUrl}" class="w-full h-full" allowfullscreen></iframe>
+          </div>
+          <div class="p-3">
+            <p class="font-bold text-sm text-white">${v.titulo}</p>
+            <p class="text-xs text-slate-400 mt-1">${v.turno} • ${v.duracao}</p>
+          </div>
+        `;
+        lista.appendChild(card);
+      }
+    }
+
+    function sair() {
+      document.getElementById('frameChamada').src = '';
+      document.getElementById('portalBox').classList.add('hidden');
+      document.getElementById('loginBox').classList.remove('hidden');
+      document.getElementById('loginForm').reset();
+    }
+  </script>
+  <script src="/hiit-timer.js"></script>
+  <script src="/presencas.js"></script>
+  <script src="/pagamentos.js"></script>
+  <script src="/pwa-init.js"></script>
+  <script src="/wod-ranking.js"></script>
+  <script src="/evolucao-fisica.js"></script>
+  <script src="/relatorio-nutricao.js"></script>
+  <script src="/fundo-tema.js"></script>
+  <script src="/streak-selos.js"></script>
+  <script src="/cadastro-blindagem-recibos.js"></script>
+  <script src="/gestao-videos-aulas.js"></script>
+  <script src="/dossier-progresso-tae.js"></script>
+  <script src="/avaliacao-fotos-fisicas.js"></script>
+  <script src="/ajustes-praticos-chb.js"></script>
+    <script src="/login-logoff-chb.js"></script>
+  <script src="/plataforma-pro-chb.js"></script>
+  <script src="/detalhes-sessao-firme-chb.js"></script>
+  <script src="/central-treino-chb.js"></script>
+  <script src="/preco-aula-chb.js"></script>
+  <script src="/funcionalidades-completas-chb.js"></script>
+  <script src="/corrigir-inscricoes-cronometro-video-chb.js"></script>
+  <script src="/cadastro-avaliacao-cardio-chb.js"></script>
+  <script src="/cronometro-programa-100-chb.js"></script>
+</body>
+</html>

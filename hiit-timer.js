@@ -1,6 +1,9 @@
 (function () {
   if (document.getElementById("hiitTimerModulo")) return;
 
+  // Marca que este módulo tem motor próprio (outros scripts não devem controlar o cronómetro)
+  window.__chbHiitMotorProprio = true;
+
   let estado = {
     trabalho: 40,
     descanso: 20,
@@ -12,12 +15,27 @@
     intervaloId: null
   };
 
+  let fimFaseMs = 0; // instante em que a fase atual termina
   let sessaoAtiva = false;
+
+  // ---------- Som (um único AudioContext reutilizado) ----------
+  let audioCtx = null;
+  function getAudioCtx() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      if (!audioCtx) audioCtx = new AudioCtx();
+      if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+      return audioCtx;
+    } catch {
+      return null;
+    }
+  }
 
   function tocarBip(freq, duracao, tipo = "sine") {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioCtx();
+      const ctx = getAudioCtx();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = tipo;
@@ -32,11 +50,13 @@
   }
 
   function formatarTempo(seg) {
-    const m = Math.floor(seg / 60);
-    const s = seg % 60;
+    const n = Math.max(0, Math.floor(Number(seg) || 0));
+    const m = Math.floor(n / 60);
+    const s = n % 60;
     return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
+  // ---------- Interface ----------
   function atualizarUI() {
     const visor = document.getElementById("hiitVisorTempo");
     const badge = document.getElementById("hiitFaseBadge");
@@ -79,73 +99,104 @@
     window.dispatchEvent(new CustomEvent("crosshitbox:sessao", { detail: { ativa: sessaoAtiva } }));
   }
 
-  function tick() {
-    if (!estado.ativo) return;
+  // ---------- Motor da contagem (baseado no relógio real, sem atrasos) ----------
+  function terminar() {
+    estado.fase = "CONCLUIDO";
+    estado.segundosRestantes = 0;
+    estado.ativo = false;
+    clearInterval(estado.intervaloId);
+    estado.intervaloId = null;
+    tocarBip(980, 0.55, "square");
+  }
 
-    if (estado.segundosRestantes > 1) {
-      estado.segundosRestantes -= 1;
-      if (estado.segundosRestantes <= 3) {
-        tocarBip(660, 0.14, "triangle");
-      }
-      atualizarUI();
-      return;
-    }
-
+  function avancarFase() {
     if (estado.fase === "TRABALHO") {
       if (estado.roundAtual >= estado.roundsTotal) {
-        estado.fase = "CONCLUIDO";
-        estado.segundosRestantes = 0;
-        estado.ativo = false;
-        clearInterval(estado.intervaloId);
-        tocarBip(980, 0.55, "square");
-      } else {
+        terminar();
+        return;
+      }
+      if (estado.descanso > 0) {
         estado.fase = "DESCANSO";
-        estado.segundosRestantes = estado.descanso;
+        fimFaseMs += estado.descanso * 1000;
         tocarBip(440, 0.35, "sawtooth");
+      } else {
+        estado.roundAtual += 1;
+        estado.fase = "TRABALHO";
+        fimFaseMs += estado.trabalho * 1000;
+        tocarBip(880, 0.35, "square");
       }
     } else if (estado.fase === "DESCANSO") {
       estado.roundAtual += 1;
       estado.fase = "TRABALHO";
-      estado.segundosRestantes = estado.trabalho;
+      fimFaseMs += estado.trabalho * 1000;
       tocarBip(880, 0.35, "square");
+    }
+  }
+
+  function tick() {
+    if (!estado.ativo) return;
+    const agora = Date.now();
+
+    let guarda = 0;
+    while (estado.ativo && agora >= fimFaseMs && guarda++ < 100) {
+      avancarFase();
+    }
+
+    if (estado.ativo) {
+      const rest = Math.max(0, Math.ceil((fimFaseMs - agora) / 1000));
+      if (rest !== estado.segundosRestantes) {
+        estado.segundosRestantes = rest;
+        if (rest > 0 && rest <= 3) tocarBip(660, 0.14, "triangle");
+      }
     }
     atualizarUI();
   }
 
+  // ---------- Funções públicas (usadas pelos botões) ----------
   window.hiitAplicarPreset = function (trabalho, descanso, rounds) {
     window.hiitReiniciar(trabalho, descanso, rounds);
   };
 
   window.hiitLerInputs = function () {
-    const t = Math.max(5, parseInt(document.getElementById("hiitInputTrabalho")?.value || "40", 10));
-    const d = Math.max(0, parseInt(document.getElementById("hiitInputDescanso")?.value || "20", 10));
-    const r = Math.max(1, parseInt(document.getElementById("hiitInputRounds")?.value || "8", 10));
+    const t = Math.max(5, parseInt(document.getElementById("hiitInputTrabalho")?.value || "40", 10) || 40);
+    const d = Math.max(0, parseInt(document.getElementById("hiitInputDescanso")?.value || "20", 10) || 0);
+    const r = Math.max(1, parseInt(document.getElementById("hiitInputRounds")?.value || "8", 10) || 8);
     window.hiitReiniciar(t, d, r);
   };
 
   window.hiitIniciar = function () {
     if (estado.ativo) return;
+    getAudioCtx(); // desbloqueia o som no clique do utilizador
+
     if (estado.fase === "PRONTO" || estado.fase === "CONCLUIDO") {
       estado.fase = "TRABALHO";
       estado.roundAtual = 1;
       estado.segundosRestantes = estado.trabalho;
       tocarBip(880, 0.35, "square");
     }
+
     estado.ativo = true;
+    fimFaseMs = Date.now() + estado.segundosRestantes * 1000;
     clearInterval(estado.intervaloId);
     estado.intervaloId = setInterval(tick, 1000);
     atualizarUI();
   };
 
   window.hiitPausar = function () {
+    if (estado.ativo) {
+      // guarda os segundos que faltam para retomar do ponto certo
+      estado.segundosRestantes = Math.max(1, Math.ceil((fimFaseMs - Date.now()) / 1000));
+    }
     estado.ativo = false;
     clearInterval(estado.intervaloId);
+    estado.intervaloId = null;
     atualizarUI();
   };
 
   window.hiitReiniciar = function (trabalho, descanso, rounds) {
     estado.ativo = false;
     clearInterval(estado.intervaloId);
+    estado.intervaloId = null;
     if (typeof trabalho === "number") estado.trabalho = trabalho;
     if (typeof descanso === "number") estado.descanso = descanso;
     if (typeof rounds === "number") estado.roundsTotal = rounds;
@@ -163,6 +214,7 @@
     atualizarUI();
   };
 
+  // ---------- Montagem do módulo ----------
   const container = document.createElement("section");
   container.id = "hiitTimerModulo";
   container.className = "hidden max-w-6xl mx-auto my-6 bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-xl transition-colors";
@@ -214,13 +266,17 @@
 
   document.body.appendChild(container);
 
+  // ---------- Visibilidade conforme a sessão ----------
   function avaliarEstadoReal() {
     const bodyText = document.body ? (document.body.innerText || "") : "";
     const temBotaoSair = Array.from(document.querySelectorAll("button, a")).some((el) => {
       const t = (el.textContent || "").trim().toLowerCase();
       return (t === "sair" || t === "terminar sessão" || t === "logout") && el.offsetParent !== null;
     });
-    const temSecaoAutenticada = bodyText.includes("Sessão ativa como:") || bodyText.includes("Vídeos de Aulas Gravadas") || bodyText.includes("Configurar Sala de Videochamada");
+    const temSecaoAutenticada =
+      bodyText.includes("Sessão ativa como:") ||
+      bodyText.includes("Vídeos de Aulas Gravadas") ||
+      bodyText.includes("Configurar Sala de Videochamada");
     const novaAtiva = Boolean(temBotaoSair || temSecaoAutenticada);
     if (novaAtiva !== sessaoAtiva) {
       sessaoAtiva = novaAtiva;
